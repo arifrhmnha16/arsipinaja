@@ -1,0 +1,11 @@
+name = "arsipinaja-storage-worker"
+main = "index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "arsipinaja-prod"
+MAX_FILE_SIZE_BYTES = "52428800" # 50 MB
+
+[[r2_buckets]]
+binding = "ARSIPINAJA_BUCKET"
+bucket_name = "arsipinaja-documents"

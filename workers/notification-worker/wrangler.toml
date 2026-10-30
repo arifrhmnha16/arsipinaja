@@ -1,0 +1,11 @@
+name = "arsipinaja-notification-worker"
+main = "index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+FIREBASE_PROJECT_ID = "arsipinaja-prod"
+TIMEZONE = "Asia/Jakarta"
+
+[triggers]
+crons = ["0 * * * *"] # Every hour
