@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
-  Zap,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -57,17 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navItems.push({ label: 'Admin Dashboard', path: '/admin', icon: ShieldAlert });
   }
 
-  const handleQuickSwitch = () => {
-    if (user?.id === 'user_mhs_1') {
-      switchUser('user_admin_1');
-      showToast('Beralih ke akun Admin ArsipinAja', 'success');
-      navigate('/admin');
-    } else {
-      switchUser('user_mhs_1');
-      showToast('Beralih ke akun Mahasiswa (Budi Santoso)', 'info');
-      navigate('/dashboard');
-    }
-  };
+
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-brand-cream border-r-3 border-brand-black text-brand-black select-none">
@@ -141,19 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Role Switcher Demo Helper */}
-      {!isCollapsed && (
-        <div className="px-3 py-2">
-          <button
-            onClick={handleQuickSwitch}
-            className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border-2 border-brand-black bg-brand-pink/20 hover:bg-brand-pink/40 text-brand-black text-xs font-bold font-mono transition-colors shadow-retro-sm"
-            title="Klik untuk beralih instan antara Mahasiswa & Admin"
-          >
-            <Zap className="w-3.5 h-3.5 text-brand-black fill-brand-yellow" />
-            <span>Switch Role ({role === 'admin' ? 'Admin' : 'Mhs'})</span>
-          </button>
-        </div>
-      )}
+
 
       {/* User Footer Profile */}
       <div className="p-3 border-t-3 border-brand-black bg-white">

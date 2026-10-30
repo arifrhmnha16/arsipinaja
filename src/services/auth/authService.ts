@@ -1,7 +1,7 @@
 import { UserProfile, UserRole, UserStatus } from '../../types';
 import { isFirebaseConfigured, auth, db } from '../firebase/config';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { INITIAL_USERS } from '../mockData';
 
 const USERS_STORAGE_KEY = 'arsipinaja_users';
@@ -27,8 +27,9 @@ function saveUsers(users: UserProfile[]) {
 export class AuthService {
   static getCurrentUser(): UserProfile | null {
     const users = loadUsers();
-    const activeId = localStorage.getItem(CURRENT_USER_KEY) || 'user_mhs_1'; // Default to Budi Santoso
-    return users.find((u) => u.id === activeId) || users[0] || null;
+    const activeId = localStorage.getItem(CURRENT_USER_KEY);
+    if (!activeId) return null;
+    return users.find((u) => u.id === activeId) || null;
   }
 
   static setCurrentUser(user: UserProfile) {
@@ -50,12 +51,32 @@ export class AuthService {
           }
           this.setCurrentUser(profile);
           return profile;
+        } else {
+          // Initialize user record in Firestore
+          const isAdmin = email.toLowerCase().includes('admin');
+          const newProfile: UserProfile = {
+            id: userCred.user.uid,
+            name: userCred.user.displayName || (isAdmin ? 'Admin ArsipinAja' : email.split('@')[0]),
+            email: userCred.user.email || email,
+            role: isAdmin ? 'admin' : 'user',
+            status: 'active',
+            semester: isAdmin ? 0 : 1,
+            major: isAdmin ? 'Pusat Komputer & Arsip' : 'Teknik Informatika',
+            university: 'Universitas Indonesia',
+            storageUsedBytes: 0,
+            storageQuotaBytes: (isAdmin ? 100 : 15) * 1024 * 1024 * 1024,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await setDoc(userDocRef, newProfile);
+          this.setCurrentUser(newProfile);
+          return newProfile;
         }
       } catch (err: any) {
         if (err.message && err.message.includes('dinonaktifkan')) {
           throw err;
         }
-        console.warn('Firebase login failed or fallback requested:', err);
+        console.warn('Firebase login error, checking registered accounts:', err);
       }
     }
 

@@ -2,7 +2,11 @@ import { FileItem } from '../../types';
 import { saveLocalBlob, getLocalBlob, deleteLocalBlob } from './idbStorage';
 import { auth } from '../firebase/config';
 
-const WORKER_URL = import.meta.env.VITE_CLOUDFLARE_WORKER_URL || '';
+let rawWorkerUrl = (import.meta.env.VITE_CLOUDFLARE_WORKER_URL || '').trim();
+if (rawWorkerUrl && !rawWorkerUrl.startsWith('http://') && !rawWorkerUrl.startsWith('https://')) {
+  rawWorkerUrl = 'https://' + rawWorkerUrl;
+}
+const WORKER_URL = rawWorkerUrl;
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
 const ALLOWED_EXTENSIONS = [
@@ -12,7 +16,7 @@ const ALLOWED_EXTENSIONS = [
 
 export class StorageService {
   static isWorkerConfigured(): boolean {
-    return Boolean(WORKER_URL && WORKER_URL.startsWith('http'));
+    return Boolean(WORKER_URL && WORKER_URL.length > 8 && !WORKER_URL.includes('your-account'));
   }
 
   static validateFile(file: File): { valid: boolean; error?: string } {

@@ -47,25 +47,7 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickDemoLogin = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    setIsLoading(true);
-    setErrorMessage('');
-    try {
-      const user = await login(demoEmail, 'password123');
-      showToast(`Login sebagai ${user.name} (${user.role.toUpperCase()})`, 'success');
-      if (user.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Login gagal.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-brand-yellow flex flex-col justify-between selection:bg-brand-pink selection:text-brand-black">
@@ -99,31 +81,6 @@ export const LoginPage: React.FC = () => {
               Kelola dokumen materi perkuliahan dengan folder bertingkat, pantau deadline tugas, dan terima pengingat otomatis via Telegram Bot.
             </p>
 
-            {/* Quick Demo Login Badges for Instant Tester Evaluation */}
-            <div className="pt-2 w-full max-w-md bg-brand-cream/80 border-2 border-brand-black p-3.5 rounded-xl shadow-retro-sm">
-              <div className="flex items-center gap-1.5 text-xs font-heading font-extrabold text-brand-black mb-2">
-                <Sparkles className="w-4 h-4 text-brand-green" />
-                <span>AKSES CEPAT DEMO (1-KLIK)</span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('budi.santoso@mahasiswa.ac.id')}
-                  className="flex-1 btn-retro text-xs font-heading font-extrabold py-2 px-3 bg-white border-2 border-brand-black rounded-lg shadow-retro-sm hover:bg-brand-yellow text-left"
-                >
-                  <div className="text-[10px] text-brand-secondary">Mahasiswa</div>
-                  <div className="truncate">Budi Santoso</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('admin@arsipinaja.id')}
-                  className="flex-1 btn-retro text-xs font-heading font-extrabold py-2 px-3 bg-brand-pink border-2 border-brand-black rounded-lg shadow-retro-sm hover:bg-brand-pink/80 text-left"
-                >
-                  <div className="text-[10px] text-brand-black/80 font-mono">Role Admin</div>
-                  <div className="truncate">Admin Arsip</div>
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* Right Column: Retro Browser Window Login Form */}
