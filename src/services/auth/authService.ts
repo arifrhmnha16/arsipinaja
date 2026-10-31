@@ -1,194 +1,211 @@
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  createUserWithEmailAndPassword,
+  getAuth,
+} from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+} from 'firebase/firestore';
 import { UserProfile, UserRole, UserStatus } from '../../types';
-import { isFirebaseConfigured, auth, db } from '../firebase/config';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { INITIAL_USERS } from '../mockData';
-
-const USERS_STORAGE_KEY = 'arsipinaja_users';
-const CURRENT_USER_KEY = 'arsipinaja_active_user_id';
-
-function loadUsers(): UserProfile[] {
-  const data = localStorage.getItem(USERS_STORAGE_KEY);
-  if (!data) {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
-    return INITIAL_USERS;
-  }
-  try {
-    return JSON.parse(data);
-  } catch {
-    return INITIAL_USERS;
-  }
-}
-
-function saveUsers(users: UserProfile[]) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
+import { auth, db, firebaseConfig, isFirebaseConfigured } from '../firebase/config';
 
 export class AuthService {
   static getCurrentUser(): UserProfile | null {
-    const users = loadUsers();
-    const activeId = localStorage.getItem(CURRENT_USER_KEY);
-    if (!activeId) return null;
-    return users.find((u) => u.id === activeId) || null;
-  }
-
-  static setCurrentUser(user: UserProfile) {
-    localStorage.setItem(CURRENT_USER_KEY, user.id);
+    if (!auth?.currentUser) return null;
+    return null; // State managed by AuthContext onAuthStateChanged
   }
 
   static async login(email: string, pass: string): Promise<UserProfile> {
-    if (isFirebaseConfigured && auth && db) {
-      try {
-        const userCred = await signInWithEmailAndPassword(auth, email, pass);
-        const userDocRef = doc(db, 'users', userCred.user.uid);
-        const userSnap = await getDoc(userDocRef);
+    if (!auth || !db) {
+      throw new Error('Firebase belum terkonfigurasi dengan benar.');
+    }
 
-        if (userSnap.exists()) {
-          const profile = userSnap.data() as UserProfile;
-          if (profile.status === 'disabled') {
-            await signOut(auth);
-            throw new Error('Akun Anda dinonaktifkan oleh administrator. Silakan hubungi admin.');
-          }
-          this.setCurrentUser(profile);
-          return profile;
-        } else {
-          // Initialize user record in Firestore
-          const isAdmin = email.toLowerCase().includes('admin');
-          const newProfile: UserProfile = {
-            id: userCred.user.uid,
-            name: userCred.user.displayName || (isAdmin ? 'Admin ArsipinAja' : email.split('@')[0]),
-            email: userCred.user.email || email,
-            role: isAdmin ? 'admin' : 'user',
-            status: 'active',
-            semester: isAdmin ? 0 : 1,
-            major: isAdmin ? 'Pusat Komputer & Arsip' : 'Teknik Informatika',
-            university: 'Universitas Indonesia',
-            storageUsedBytes: 0,
-            storageQuotaBytes: (isAdmin ? 100 : 15) * 1024 * 1024 * 1024,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          await setDoc(userDocRef, newProfile);
-          this.setCurrentUser(newProfile);
-          return newProfile;
-        }
-      } catch (err: any) {
-        if (err.message && err.message.includes('dinonaktifkan')) {
-          throw err;
-        }
-        console.warn('Firebase login error, checking registered accounts:', err);
+    const userCred = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    const userDocRef = doc(db, 'users', userCred.user.uid);
+    const userSnap = await getDoc(userDocRef);
+
+    if (userSnap.exists()) {
+      const profile = userSnap.data() as UserProfile;
+      if (profile.status === 'disabled') {
+        await signOut(auth);
+        throw new Error('Akun Anda dinonaktifkan. Silakan hubungi admin ruang berdua.');
       }
+      return profile;
     }
 
-    // Local / Demo Mode Login
-    const users = loadUsers();
-    const found = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-
-    if (!found) {
-      throw new Error('Email atau password salah. Silakan periksa kembali akun Anda.');
+    const isAdmin = Boolean(email.toLowerCase().includes('admin'));
+    if (!isAdmin) {
+      await signOut(auth);
+      throw new Error('Akun ini tidak terdaftar atau telah dihapus oleh Admin.');
     }
 
-    if (found.status === 'disabled') {
-      throw new Error('Akun Anda sedang dinonaktifkan oleh Administrator.');
-    }
+    // Auto-initialize profile document for initial Admin
+    const newProfile: UserProfile = {
+      id: userCred.user.uid,
+      name: userCred.user.displayName || (isAdmin ? 'Admin Ruang Berdua' : email.split('@')[0]),
+      email: userCred.user.email || email,
+      role: isAdmin ? 'admin' : 'user',
+      status: 'active',
+      semester: isAdmin ? 0 : 1,
+      major: isAdmin ? 'Pusat Komputer & Arsip' : 'Teknik Informatika',
+      university: 'Universitas Indonesia',
+      storageUsedBytes: 0,
+      storageQuotaBytes: (isAdmin ? 100 : 15) * 1024 * 1024 * 1024,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-    this.setCurrentUser(found);
-    return found;
+    await setDoc(userDocRef, newProfile);
+    return newProfile;
   }
 
   static async logout(): Promise<void> {
-    if (isFirebaseConfigured && auth) {
-      try {
-        await signOut(auth);
-      } catch (err) {
-        console.warn('Firebase signout error:', err);
-      }
+    if (auth) {
+      await signOut(auth);
     }
-    localStorage.removeItem(CURRENT_USER_KEY);
   }
 
-  static async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
-    const users = loadUsers();
-    const index = users.findIndex((u) => u.id === userId);
-    if (index === -1) throw new Error('Pengguna tidak ditemukan.');
-
-    const updated = {
-      ...users[index],
+  static async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
+    if (!db) throw new Error('Database Firestore tidak terhubung.');
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
       ...updates,
       updatedAt: new Date().toISOString(),
-    };
-    users[index] = updated;
-    saveUsers(users);
-
-    if (isFirebaseConfigured && db) {
-      try {
-        await updateDoc(doc(db, 'users', userId), {
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.warn('Firebase updateDoc error:', err);
-      }
-    }
-
-    return updated;
+    });
   }
 
-  // ADMIN METHODS
-  static getAllUsers(): UserProfile[] {
-    return loadUsers();
+  // ADMIN METHODS (Direct Firestore integration)
+  static async getAllUsers(): Promise<UserProfile[]> {
+    if (!db) return [];
+    try {
+      const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      const list: UserProfile[] = [];
+      snap.forEach((d) => list.push(d.data() as UserProfile));
+      return list;
+    } catch (err) {
+      console.error('Failed to get users from Firestore:', err);
+      // Fallback query without orderBy if index is still propagating
+      const snap = await getDocs(collection(db, 'users'));
+      const list: UserProfile[] = [];
+      snap.forEach((d) => list.push(d.data() as UserProfile));
+      return list;
+    }
   }
 
   static async adminCreateUser(params: {
     name: string;
     email: string;
+    password?: string;
     role: UserRole;
     major?: string;
     semester?: number;
     university?: string;
   }): Promise<UserProfile> {
-    const users = loadUsers();
-    if (users.some((u) => u.email.toLowerCase() === params.email.trim().toLowerCase())) {
-      throw new Error('Email sudah terdaftar dalam sistem.');
+    if (!db) throw new Error('Database Firestore tidak terhubung.');
+
+    const cleanEmail = params.email.trim().toLowerCase();
+    const cleanPassword = params.password?.trim();
+
+    if (cleanPassword && cleanPassword.length < 6) {
+      throw new Error('Kata sandi minimal harus 6 karakter.');
     }
 
+    let userId = 'user_' + Math.random().toString(36).substring(2, 10);
+
+    // If password provided and Firebase configured, create real Firebase Auth user via secondary app
+    if (cleanPassword && isFirebaseConfigured) {
+      try {
+        const secondaryApp =
+          getApps().find((a) => a.name === 'SecondaryAdminAuth') ||
+          initializeApp(firebaseConfig, 'SecondaryAdminAuth');
+        const secondaryAuth = getAuth(secondaryApp);
+
+        const userCred = await createUserWithEmailAndPassword(
+          secondaryAuth,
+          cleanEmail,
+          cleanPassword
+        );
+        userId = userCred.user.uid;
+
+        // Clear session on secondary app so it does not interfere with primary session
+        await signOut(secondaryAuth);
+      } catch (authErr: any) {
+        console.error('Firebase Auth creation error:', authErr);
+        if (authErr.code === 'auth/email-already-in-use') {
+          throw new Error('Email ini sudah terdaftar. Silakan gunakan email lain.');
+        } else if (authErr.code === 'auth/weak-password') {
+          throw new Error('Kata sandi terlalu lemah. Gunakan minimal 6 karakter.');
+        } else if (authErr.code === 'auth/invalid-email') {
+          throw new Error('Format email tidak valid.');
+        } else {
+          throw new Error(authErr.message || 'Gagal mendaftarkan akun di sistem autentikasi.');
+        }
+      }
+    }
+
+    const newDocRef = doc(db, 'users', userId);
+
     const newUser: UserProfile = {
-      id: 'user_' + Math.random().toString(36).substring(2, 9),
+      id: userId,
       name: params.name.trim(),
-      email: params.email.trim().toLowerCase(),
+      email: cleanEmail,
       role: params.role,
       status: 'active',
       semester: params.semester || 1,
       major: params.major || 'Teknik Informatika',
       university: params.university || 'Universitas Indonesia',
       storageUsedBytes: 0,
-      storageQuotaBytes: 15 * 1024 * 1024 * 1024,
+      storageQuotaBytes: (params.role === 'admin' ? 100 : 15) * 1024 * 1024 * 1024,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    users.push(newUser);
-    saveUsers(users);
+    await setDoc(newDocRef, newUser);
+
+    // If no password was provided, send password reset invite email
+    if (!cleanPassword && auth) {
+      try {
+        await sendPasswordResetEmail(auth, newUser.email);
+      } catch (e) {
+        console.warn('Password reset invite email note:', e);
+      }
+    }
+
     return newUser;
   }
 
-  static async adminToggleUserStatus(userId: string, newStatus: UserStatus): Promise<UserProfile> {
-    const users = loadUsers();
-    const user = users.find((u) => u.id === userId);
-    if (!user) throw new Error('Pengguna tidak ditemukan.');
-    if (user.role === 'admin') throw new Error('Status akun Administrator tidak dapat dinonaktifkan.');
-
-    user.status = newStatus;
-    user.updatedAt = new Date().toISOString();
-    saveUsers(users);
-    return user;
+  static async adminToggleUserStatus(userId: string, newStatus: UserStatus): Promise<void> {
+    if (!db) throw new Error('Database Firestore tidak terhubung.');
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      status: newStatus,
+      updatedAt: new Date().toISOString(),
+    });
   }
 
-  static async adminResetPassword(userId: string): Promise<string> {
-    const users = loadUsers();
-    const user = users.find((u) => u.id === userId);
-    if (!user) throw new Error('Pengguna tidak ditemukan.');
-    // In production, triggers Firebase sendPasswordResetEmail. In demo, returns temporary code.
-    return `Pass-${Math.floor(100000 + Math.random() * 900000)}`;
+  static async adminDeleteUser(userId: string): Promise<void> {
+    if (!db) throw new Error('Database Firestore tidak terhubung.');
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
+  }
+
+  static async adminResetPassword(userId: string, email?: string): Promise<string> {
+    if (auth && email) {
+      await sendPasswordResetEmail(auth, email);
+      return `Tautan reset kata sandi telah dikirimkan ke email: ${email}`;
+    }
+    return `Tautan reset kata sandi telah dikirimkan`;
   }
 }

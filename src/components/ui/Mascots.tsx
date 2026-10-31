@@ -28,8 +28,8 @@ export const SunMascot: React.FC<{ size?: number; className?: string }> = ({ siz
         <line x1="15" y1="108" x2="33" y2="102" />
         <line x1="145" y1="108" x2="127" y2="102" />
       </g>
-      {/* Sun Main Body */}
-      <circle cx="80" cy="80" r="50" fill="#FFE500" stroke="#171717" strokeWidth="3.5" />
+      {/* Sun Main Body (Retro Sky Blue) */}
+      <circle cx="80" cy="80" r="50" fill="#38BDF8" stroke="#171717" strokeWidth="3.5" />
       {/* Left Eye */}
       <ellipse cx="68" cy="74" rx="7" ry="10" fill="#171717" />
       <ellipse cx="66" cy="71" rx="2.5" ry="3.5" fill="#FFFFFF" />
@@ -38,9 +38,9 @@ export const SunMascot: React.FC<{ size?: number; className?: string }> = ({ siz
       <ellipse cx="90" cy="71" rx="2.5" ry="3.5" fill="#FFFFFF" />
       {/* Cartoon Whistling / Happy Mouth */}
       <ellipse cx="80" cy="94" rx="5" ry="7" fill="#171717" />
-      {/* Cheek Blush */}
-      <circle cx="56" cy="85" r="4" fill="#F381A6" />
-      <circle cx="104" cy="85" r="4" fill="#F381A6" />
+      {/* Cheek Blush (Cyan Blue) */}
+      <circle cx="56" cy="85" r="4" fill="#0EA5E9" />
+      <circle cx="104" cy="85" r="4" fill="#0EA5E9" />
     </svg>
   );
 };
@@ -84,8 +84,8 @@ export const StarburstBadge: React.FC<{
 }> = ({
   text,
   subtext,
-  bgColor = '#F381A6',
-  textColor = '#171717',
+  bgColor = '#2563EB',
+  textColor = '#FFFFFF',
   className = '',
 }) => {
   return (
@@ -150,15 +150,17 @@ export const CheckerboardDivider: React.FC<{
 // Retro Pill Tag
 export const RetroPill: React.FC<{
   children: React.ReactNode;
-  variant?: 'yellow' | 'green' | 'pink' | 'blue' | 'cream' | 'white';
+  variant?: 'yellow' | 'green' | 'pink' | 'blue' | 'cream' | 'white' | 'navy' | 'sky';
   className?: string;
-}> = ({ children, variant = 'yellow', className = '' }) => {
+}> = ({ children, variant = 'blue', className = '' }) => {
   const bg = {
-    yellow: 'bg-brand-yellow text-brand-black',
-    green: 'bg-brand-green text-white',
-    pink: 'bg-brand-pink text-brand-black',
+    yellow: 'bg-brand-sky text-brand-black',
+    green: 'bg-brand-blue text-white',
+    pink: 'bg-brand-navy text-white',
+    navy: 'bg-brand-navy text-white',
+    sky: 'bg-brand-sky text-brand-black',
     blue: 'bg-brand-blue text-white',
-    cream: 'bg-brand-cream text-brand-black',
+    cream: 'bg-brand-ice text-brand-black',
     white: 'bg-white text-brand-black',
   }[variant];
 

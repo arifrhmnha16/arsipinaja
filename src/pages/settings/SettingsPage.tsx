@@ -41,6 +41,9 @@ export const SettingsPage: React.FC = () => {
   const [activeVerification, setActiveVerification] = useState<TelegramVerificationCode | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [manualCodeInput, setManualCodeInput] = useState('');
+  const [manualChatIdInput, setManualChatIdInput] = useState('');
+  const [isDetectingChat, setIsDetectingChat] = useState(false);
+  const [isTestingSend, setIsTestingSend] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
   // Reminder Preferences
@@ -85,38 +88,69 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleGenerateTelegramCode = () => {
+  const handleAutoDetectTelegram = async () => {
     if (!user) return;
-    const codeRecord = TelegramService.generateVerificationCode(user.id);
-    setActiveVerification(codeRecord);
-    setIsConnectModalOpen(true);
-  };
+    setIsDetectingChat(true);
+    try {
+      const res = await TelegramService.detectRecentChatFromBot();
+      if (!res.success || !res.data) {
+        showToast(res.message, 'error');
+        return;
+      }
 
-  const handleCopyCode = () => {
-    if (activeVerification) {
-      navigator.clipboard.writeText(activeVerification.code);
-      showToast('Kode verifikasi disalin ke clipboard!', 'info');
+      const { chatId, firstName, username } = res.data;
+      const connectRes = await TelegramService.connectRealTelegram(user.id, chatId, username);
+
+      if (connectRes.success) {
+        refreshUser();
+        showToast(`Berhasil terhubung ke Telegram ${firstName}!`, 'success');
+        setIsConnectModalOpen(false);
+      } else {
+        showToast(connectRes.message, 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Gagal mendeteksi akun Telegram.', 'error');
+    } finally {
+      setIsDetectingChat(false);
     }
   };
 
-  const handleVerifyCode = async () => {
-    if (!user || !activeVerification) return;
+  const handleManualConnectTelegram = async () => {
+    if (!user || !manualChatIdInput.trim()) {
+      showToast('Masukkan Chat ID Telegram Anda.', 'error');
+      return;
+    }
     setIsVerifying(true);
     try {
-      await TelegramService.verifyCodeAndConnect(
-        user.id,
-        manualCodeInput || activeVerification.code,
-        '109876543'
-      );
-      refreshUser();
-      showToast('Telegram Bot berhasil terhubung ke akun ArsipinAja!', 'success');
-      setIsConnectModalOpen(false);
-      setManualCodeInput('');
-      setActiveVerification(null);
+      const connectRes = await TelegramService.connectRealTelegram(user.id, manualChatIdInput.trim());
+      if (connectRes.success) {
+        refreshUser();
+        showToast(connectRes.message, 'success');
+        setIsConnectModalOpen(false);
+        setManualChatIdInput('');
+      } else {
+        showToast(connectRes.message, 'error');
+      }
     } catch (err: any) {
-      showToast(err.message || 'Verifikasi gagal.', 'error');
+      showToast(err.message || 'Gagal menghubungkan Telegram.', 'error');
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  const handleTestSendHello = async () => {
+    if (!user?.telegramChatId) {
+      showToast('Akun Telegram belum terhubung.', 'error');
+      return;
+    }
+    setIsTestingSend(true);
+    try {
+      const res = await TelegramService.sendTestHelloMessage(user.telegramChatId, user.name);
+      showToast(res.message, res.success ? 'success' : 'error');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal mengirim pesan tes.', 'error');
+    } finally {
+      setIsTestingSend(false);
     }
   };
 
@@ -147,12 +181,12 @@ export const SettingsPage: React.FC = () => {
           Pengaturan Akun & Sistem
         </h2>
         <p className="text-xs text-brand-secondary font-medium">
-          Kelola data profil akademik, integrasi bot notifikasi Telegram, dan preferensi aplikasi.
+          Kelola profil akun kita, integrasi bot Telegram untuk pengingat tugas kuliah, dan preferensi.
         </p>
       </div>
 
       {/* Tabs Selector */}
-      <div className="flex flex-wrap items-center gap-2 border-b-2 border-brand-black/20 pb-3">
+      <div className="flex items-center gap-2 border-b-2 border-brand-black/20 pb-3 overflow-x-auto sm:flex-wrap">
         {[
           { id: 'profile', label: 'Profil Saya', icon: User },
           { id: 'telegram', label: 'Bot Telegram', icon: Send },
@@ -168,9 +202,9 @@ export const SettingsPage: React.FC = () => {
                 setActiveTab(tab.id as any);
                 setSearchParams({ tab: tab.id });
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-heading font-extrabold text-xs transition-all border-2 ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg font-heading font-extrabold text-xs transition-all border-2 flex-shrink-0 cursor-pointer ${
                 isActive
-                  ? 'bg-brand-yellow text-brand-black border-brand-black shadow-retro-sm'
+                  ? 'bg-brand-blue text-white border-brand-black shadow-retro-sm'
                   : 'bg-white text-brand-black/70 border-brand-black/20 hover:border-brand-black hover:text-brand-black'
               }`}
             >
@@ -183,10 +217,10 @@ export const SettingsPage: React.FC = () => {
 
       {/* TAB 1: PROFILE */}
       {activeTab === 'profile' && (
-        <WindowCard title="PROFIL MAHASISWA" tag="ACCOUNT" headerBg="yellow">
+        <WindowCard title="PROFIL AKUN SAYA" tag="ACCOUNT" headerBg="blue">
           <form onSubmit={handleSaveProfile} className="space-y-4 max-w-xl">
             <div className="flex items-center gap-4 pb-3 border-b border-brand-black/15">
-              <div className="w-16 h-16 rounded-full border-3 border-brand-black bg-brand-green text-white flex items-center justify-center font-display font-black text-2xl shadow-retro-sm">
+              <div className="w-16 h-16 rounded-full border-3 border-brand-black bg-brand-blue text-white flex items-center justify-center font-display font-black text-2xl shadow-retro-sm">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div>
@@ -194,8 +228,8 @@ export const SettingsPage: React.FC = () => {
                   {user?.name}
                 </div>
                 <div className="text-xs text-brand-secondary font-mono">{user?.email}</div>
-                <div className="text-[10px] font-mono font-bold mt-1 inline-block px-2 py-0.5 rounded border border-brand-black bg-brand-cream">
-                  Role: {user?.role.toUpperCase()}
+                <div className="text-[10px] font-mono font-bold mt-1 inline-block px-2 py-0.5 rounded border border-brand-black bg-brand-ice">
+                  Akses: {user?.role.toUpperCase()}
                 </div>
               </div>
             </div>
@@ -216,7 +250,7 @@ export const SettingsPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-heading font-extrabold uppercase mb-1">
-                  Email (Dikelola Administrator)
+                  Email Akun
                 </label>
                 <input
                   type="email"
@@ -228,7 +262,7 @@ export const SettingsPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-heading font-extrabold uppercase mb-1">
-                  Program Studi / Jurusan
+                  Jurusan / Minat Kuliah
                 </label>
                 <input
                   type="text"
@@ -254,7 +288,7 @@ export const SettingsPage: React.FC = () => {
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-heading font-extrabold uppercase mb-1">
-                  Perguruan Tinggi / Universitas
+                  Universitas / Kampus Kuliah
                 </label>
                 <input
                   type="text"
@@ -266,7 +300,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div className="pt-3">
-              <RetroButton variant="yellow" size="sm" type="submit">
+              <RetroButton variant="blue" size="sm" type="submit">
                 Simpan Perubahan Profil
               </RetroButton>
             </div>
@@ -283,7 +317,7 @@ export const SettingsPage: React.FC = () => {
             headerBg="blue"
           >
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-brand-black bg-brand-cream/50 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-brand-black bg-brand-ice shadow-xs">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl border-2 border-brand-black bg-brand-blue text-white flex items-center justify-center flex-shrink-0 shadow-xs">
                     <Send className="w-6 h-6 stroke-[2.5]" />
@@ -296,8 +330,8 @@ export const SettingsPage: React.FC = () => {
                       <span
                         className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border border-brand-black ${
                           isConnected
-                            ? 'bg-brand-green text-white'
-                            : 'bg-brand-pink text-brand-black'
+                            ? 'bg-brand-blue text-white'
+                            : 'bg-brand-navy text-white'
                         }`}
                       >
                         {isConnected ? 'TERHUBUNG' : 'BELUM TERHUBUNG'}
@@ -306,25 +340,48 @@ export const SettingsPage: React.FC = () => {
                     <p className="text-xs text-brand-secondary mt-0.5">
                       {isConnected
                         ? `Chat ID: ${user?.telegramChatId} • Terhubung sejak ${new Date(user?.telegramConnectedAt || Date.now()).toLocaleDateString('id-ID')}`
-                        : 'Hubungkan akun Telegram untuk menerima pengingat deadline otomatis.'}
+                        : 'Hubungkan akun Telegram untuk menerima pengingat deadline otomatis ke HP.'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {isConnected ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {isConnected && (
                     <RetroButton
-                      variant="pink"
+                      variant="white"
                       size="sm"
-                      onClick={handleDisconnectTelegram}
+                      isLoading={isTestingSend}
+                      leftIcon={<Send className="w-3.5 h-3.5" />}
+                      onClick={handleTestSendHello}
                     >
-                      Putuskan Koneksi
+                      Tes Kirim Pesan
                     </RetroButton>
+                  )}
+                  {isConnected ? (
+                    <>
+                      <RetroButton
+                        variant="white"
+                        size="sm"
+                        onClick={() => {
+                          setManualChatIdInput(user?.telegramChatId || '');
+                          setIsConnectModalOpen(true);
+                        }}
+                      >
+                        Ganti Akun
+                      </RetroButton>
+                      <RetroButton
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDisconnectTelegram}
+                      >
+                        Putuskan
+                      </RetroButton>
+                    </>
                   ) : (
                     <RetroButton
-                      variant="yellow"
+                      variant="blue"
                       size="sm"
-                      onClick={handleGenerateTelegramCode}
+                      onClick={() => setIsConnectModalOpen(true)}
                     >
                       Hubungkan Telegram
                     </RetroButton>
@@ -354,13 +411,13 @@ export const SettingsPage: React.FC = () => {
                     return (
                       <label
                         key={rem.key}
-                        className="flex items-start gap-3 p-3 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-cream/30 transition-colors cursor-pointer select-none"
+                        className="flex items-start gap-3 p-3 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-ice/30 transition-colors cursor-pointer select-none"
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggleReminder(k)}
-                          className="mt-0.5 w-4 h-4 rounded border-2 border-brand-black text-brand-green focus:ring-0 cursor-pointer"
+                          className="mt-0.5 w-4 h-4 rounded border-2 border-brand-black text-brand-blue focus:ring-0 cursor-pointer"
                         />
                         <div>
                           <div className="text-xs font-bold text-brand-black">{rem.label}</div>
@@ -374,84 +431,90 @@ export const SettingsPage: React.FC = () => {
             </div>
           </WindowCard>
 
-          {/* TELEGRAM CONNECTION MODAL WITH 6-DIGIT CODE */}
+          {/* TELEGRAM CONNECTION MODAL */}
           <RetroModal
             isOpen={isConnectModalOpen}
             onClose={() => setIsConnectModalOpen(false)}
-            title="HUBUNGKAN DENGAN TELEGRAM BOT"
-            tag="VERIFIKASI"
-            headerBg="yellow"
+            title="HUBUNGKAN BOT TELEGRAM"
+            tag="TELEGRAM API"
+            headerBg="blue"
             maxWidth="lg"
           >
             <div className="space-y-4">
-              <div className="space-y-2 text-xs text-brand-black font-medium leading-relaxed">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-brand-black text-brand-yellow font-bold text-[11px] flex items-center justify-center">
+              {/* Step 1: Open Bot Link */}
+              <div className="p-3.5 rounded-xl border-2 border-brand-black bg-brand-ice space-y-2">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-brand-black">
+                  <span className="w-5 h-5 rounded-full bg-brand-blue text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
                     1
                   </span>
-                  <span>
-                    Buka bot Telegram kami:{' '}
-                    <a
-                      href={TelegramService.getBotUrl()}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-bold underline text-brand-blue"
-                    >
-                      @{TelegramService.getBotUsername()}
-                    </a>
-                  </span>
+                  <span>Buka Bot Telegram ArsipinAja:</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-brand-black text-brand-yellow font-bold text-[11px] flex items-center justify-center">
-                    2
+                <div className="flex items-center justify-between gap-3 pl-7">
+                  <a
+                    href={TelegramService.getBotUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 font-mono font-bold text-sm text-brand-blue underline hover:text-brand-navy"
+                  >
+                    <span>@{TelegramService.getBotUsername()}</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <span className="text-[11px] font-bold text-brand-secondary">
+                    Klik tombol <b>START</b> di Telegram
                   </span>
-                  <span>Kirimkan kode verifikasi unik di bawah ini ke bot Telegram.</span>
                 </div>
               </div>
 
-              {/* 6-Digit Code Box */}
-              {activeVerification && (
-                <div className="p-4 rounded-xl border-3 border-brand-black bg-brand-cream text-center space-y-2 shadow-retro-sm">
-                  <div className="text-[10px] font-mono font-bold uppercase text-brand-secondary tracking-widest">
-                    KODE VERIFIKASI ANDA (BERLAKU 15 MENIT)
-                  </div>
-                  <div className="font-display font-black text-4xl sm:text-5xl tracking-widest text-brand-black selection:bg-brand-yellow">
-                    {activeVerification.code}
-                  </div>
-                  <div>
-                    <RetroButton
-                      variant="white"
-                      size="sm"
-                      leftIcon={<Copy className="w-3.5 h-3.5" />}
-                      onClick={handleCopyCode}
-                    >
-                      Salin Kode
-                    </RetroButton>
-                  </div>
+              {/* Method 1: Auto Detection */}
+              <div className="p-3.5 rounded-xl border-2 border-brand-black bg-white space-y-2 shadow-xs">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-brand-black">
+                  <span className="w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                    2A
+                  </span>
+                  <span>Cara Otomatis (Paling Mudah):</span>
                 </div>
-              )}
+                <p className="text-xs text-brand-secondary pl-7 leading-relaxed">
+                  Setelah klik <b>START</b> atau kirim pesan apa saja ke bot Telegram, klik tombol di bawah untuk menghubungkan akun secara otomatis.
+                </p>
+                <div className="pl-7 pt-1">
+                  <RetroButton
+                    variant="blue"
+                    size="sm"
+                    isLoading={isDetectingChat}
+                    leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                    onClick={handleAutoDetectTelegram}
+                  >
+                    Deteksi Akun Telegram Otomatis
+                  </RetroButton>
+                </div>
+              </div>
 
-              {/* Quick Instant Verification Simulator for Reviewers */}
-              <div className="pt-2 border-t border-brand-black/20">
-                <label className="block text-[11px] font-bold text-brand-secondary mb-1">
-                  Konfirmasi atau masukkan kode verifikasi:
-                </label>
-                <div className="flex gap-2">
+              {/* Method 2: Manual Input */}
+              <div className="p-3.5 rounded-xl border-2 border-brand-black bg-white space-y-2 shadow-xs">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-brand-black">
+                  <span className="w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                    2B
+                  </span>
+                  <span>Atau Masukkan Chat ID Manual:</span>
+                </div>
+                <p className="text-xs text-brand-secondary pl-7 leading-relaxed">
+                  Dapatkan ID Telegram Anda melalui bot <code>@userinfobot</code> atau <code>@raw_data_bot</code> di Telegram.
+                </p>
+                <div className="pl-7 flex gap-2 pt-1">
                   <input
                     type="text"
-                    value={manualCodeInput || activeVerification?.code || ''}
-                    onChange={(e) => setManualCodeInput(e.target.value)}
-                    placeholder="6-digit kode"
-                    maxLength={6}
-                    className="flex-1 px-3 py-1.5 rounded-lg border-2 border-brand-black font-mono font-bold text-center tracking-widest text-sm"
+                    value={manualChatIdInput}
+                    onChange={(e) => setManualChatIdInput(e.target.value)}
+                    placeholder="Contoh: 123456789"
+                    className="flex-1 px-3 py-1.5 rounded-lg border-2 border-brand-black font-mono font-bold text-xs"
                   />
                   <RetroButton
-                    variant="green"
+                    variant="blue"
                     size="sm"
                     isLoading={isVerifying}
-                    onClick={handleVerifyCode}
+                    onClick={handleManualConnectTelegram}
                   >
-                    Verifikasi Sekarang
+                    Simpan &amp; Tes
                   </RetroButton>
                 </div>
               </div>
@@ -462,7 +525,7 @@ export const SettingsPage: React.FC = () => {
 
       {/* TAB 3: PREFERENCES */}
       {activeTab === 'preferences' && (
-        <WindowCard title="PREFERENSI APLIKASI" tag="SYSTEM" headerBg="pink">
+        <WindowCard title="PREFERENSI APLIKASI" tag="SYSTEM" headerBg="blue">
           <div className="space-y-4 max-w-lg">
             <div>
               <label className="block text-xs font-heading font-extrabold uppercase mb-1">
@@ -483,14 +546,14 @@ export const SettingsPage: React.FC = () => {
               <label className="block text-xs font-heading font-extrabold uppercase mb-1">
                 Tema & Visual Identity
               </label>
-              <div className="p-3 rounded-lg border-2 border-brand-black bg-brand-cream/50 flex items-center justify-between">
+              <div className="p-3 rounded-lg border-2 border-brand-black bg-brand-ice/40 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-brand-black">Nyonyo Playful Retro</div>
+                  <div className="text-xs font-bold text-brand-black">Retro Blue Aesthetic</div>
                   <div className="text-[10px] text-brand-secondary">
-                    Primary Yellow, Green, Pink, Cream surfaces, brutalist shadows
+                    Royal Blue, Sky Blue, Navy, Cyan, Ice Blue brutalist palette
                   </div>
                 </div>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-brand-black bg-brand-yellow">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-brand-black bg-brand-blue text-white">
                   AKTIF
                 </span>
               </div>
@@ -511,16 +574,16 @@ export const SettingsPage: React.FC = () => {
 
       {/* TAB 4: STORAGE */}
       {activeTab === 'storage' && (
-        <WindowCard title="PENGGUNAAN CLOUDFLARE R2 STORAGE" tag="STORAGE" headerBg="green">
+        <WindowCard title="PENGGUNAAN CLOUDFLARE R2 STORAGE" tag="STORAGE" headerBg="blue">
           <div className="space-y-4 max-w-lg">
             <div>
               <div className="flex items-center justify-between text-xs font-mono font-bold mb-1">
                 <span>Terpakai: {storageUsedMB.toFixed(1)} MB</span>
                 <span>Kapasitas: {(storageQuotaMB / 1024).toFixed(0)} GB</span>
               </div>
-              <div className="w-full bg-brand-cream border-2 border-brand-black rounded-full h-4 overflow-hidden">
+              <div className="w-full bg-brand-ice border-2 border-brand-black rounded-full h-4 overflow-hidden">
                 <div
-                  className="bg-brand-green h-full transition-all"
+                  className="bg-brand-blue h-full transition-all"
                   style={{ width: `${Math.max(4, storagePercentage)}%` }}
                 />
               </div>
@@ -529,12 +592,12 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-lg border-2 border-brand-black bg-brand-cream/30 space-y-2 text-xs">
+            <div className="p-3.5 rounded-lg border-2 border-brand-black bg-brand-ice space-y-2 text-xs">
               <div className="font-heading font-extrabold text-brand-black">
-                Penyimpanan Cloudflare R2 Terisolasi
+                Penyimpanan Cloudflare R2 Ruang Berdua
               </div>
               <p className="text-brand-secondary leading-relaxed text-[11px]">
-                Seluruh dokumen disimpan dengan aman pada bucket Cloudflare R2 dengan otorisasi ID Token Firebase. Tidak ada dokumen pribadi yang terbuka untuk publik.
+                Seluruh dokumen disimpan dengan aman pada bucket Cloudflare R2 dengan otorisasi ID Token Firebase. Akses terisolasi khusus akun kita berdua.
               </p>
             </div>
           </div>

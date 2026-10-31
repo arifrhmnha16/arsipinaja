@@ -69,7 +69,7 @@ export const ArchivePage: React.FC = () => {
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
-  const [newFolderColor, setNewFolderColor] = useState('yellow');
+  const [newFolderColor, setNewFolderColor] = useState('blue');
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -89,16 +89,26 @@ export const ArchivePage: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load content
-  const loadArchive = () => {
-    if (!user) return;
-    const currentFolders = ArchiveService.getFolders(user.id, currentFolderId, false);
-    const currentFiles = ArchiveService.getFiles(user.id, currentFolderId, false);
-    const crumbs = ArchiveService.getBreadcrumbs(currentFolderId);
+  const [allUserFolders, setAllUserFolders] = useState<FolderItem[]>([]);
 
-    setFolders(currentFolders);
-    setFiles(currentFiles);
-    setBreadcrumbs(crumbs);
+  // Load content
+  const loadArchive = async () => {
+    if (!user) return;
+    try {
+      const [currentFolders, currentFiles, crumbs, allFolders] = await Promise.all([
+        ArchiveService.getFolders(user.id, currentFolderId, false),
+        ArchiveService.getFiles(user.id, currentFolderId, false),
+        ArchiveService.getBreadcrumbs(currentFolderId),
+        ArchiveService.getAllUserFolders(user.id),
+      ]);
+
+      setFolders(currentFolders);
+      setFiles(currentFiles);
+      setBreadcrumbs(crumbs);
+      setAllUserFolders(allFolders);
+    } catch (err) {
+      console.error('Error loading archive:', err);
+    }
   };
 
   useEffect(() => {
@@ -152,12 +162,12 @@ export const ArchivePage: React.FC = () => {
   });
 
   // Folder Operations
-  const handleCreateFolder = (e: React.FormEvent) => {
+  const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newFolderName.trim()) return;
 
     try {
-      ArchiveService.createFolder({
+      await ArchiveService.createFolder({
         userId: user.id,
         name: newFolderName,
         parentId: currentFolderId,
@@ -168,26 +178,26 @@ export const ArchivePage: React.FC = () => {
       setNewFolderName('');
       setNewFolderDesc('');
       setIsCreateFolderModalOpen(false);
-      loadArchive();
+      await loadArchive();
     } catch (err: any) {
       showToast(err.message || 'Gagal membuat folder', 'error');
     }
   };
 
-  const handleToggleFavoriteFolder = (f: FolderItem, e: React.MouseEvent) => {
+  const handleToggleFavoriteFolder = async (f: FolderItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    ArchiveService.toggleFavoriteFolder(f.id);
+    await ArchiveService.toggleFavoriteFolder(f.id, f.isFavorite);
     showToast(
       f.isFavorite ? 'Dihapus dari favorit' : 'Ditambahkan ke favorit',
       'info'
     );
-    loadArchive();
+    await loadArchive();
   };
 
-  const handleDeleteFolder = (folderId: string) => {
-    ArchiveService.deleteFolder(folderId);
+  const handleDeleteFolder = async (folderId: string) => {
+    await ArchiveService.deleteFolder(folderId);
     showToast('Folder dipindahkan ke Tempat Sampah.', 'info');
-    loadArchive();
+    await loadArchive();
   };
 
   // File Operations
@@ -221,7 +231,7 @@ export const ArchivePage: React.FC = () => {
       showToast(`${uploadFiles.length} file berhasil diunggah!`, 'success');
       setUploadFiles([]);
       setIsUploadModalOpen(false);
-      loadArchive();
+      await loadArchive();
     } catch (err: any) {
       showToast(err.message || 'Gagal mengunggah file', 'error');
     } finally {
@@ -250,56 +260,56 @@ export const ArchivePage: React.FC = () => {
     }
   };
 
-  const handleDeleteFile = (fileId: string) => {
-    ArchiveService.deleteFile(fileId);
+  const handleDeleteFile = async (fileId: string) => {
+    await ArchiveService.deleteFile(fileId);
     showToast('File dipindahkan ke Tempat Sampah.', 'info');
-    loadArchive();
+    await loadArchive();
   };
 
-  const handleToggleFavoriteFile = (fileItem: FileItem, e: React.MouseEvent) => {
+  const handleToggleFavoriteFile = async (fileItem: FileItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    ArchiveService.toggleFavoriteFile(fileItem.id);
+    await ArchiveService.toggleFavoriteFile(fileItem.id, fileItem.isFavorite);
     showToast(
       fileItem.isFavorite ? 'Dihapus dari favorit' : 'Ditambahkan ke favorit',
       'info'
     );
-    loadArchive();
+    await loadArchive();
   };
 
   // Rename Target Execution
-  const handleRenameSubmit = (e: React.FormEvent) => {
+  const handleRenameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!renameTargetName.trim()) return;
 
     if (selectedFolderForAction) {
-      ArchiveService.renameFolder(selectedFolderForAction.id, renameTargetName);
+      await ArchiveService.renameFolder(selectedFolderForAction.id, renameTargetName);
       showToast('Folder berhasil diubah namanya.', 'success');
     } else if (selectedFileForAction) {
-      ArchiveService.renameFile(selectedFileForAction.id, renameTargetName);
+      await ArchiveService.renameFile(selectedFileForAction.id, renameTargetName);
       showToast('File berhasil diubah namanya.', 'success');
     }
 
     setIsRenameModalOpen(false);
     setSelectedFolderForAction(null);
     setSelectedFileForAction(null);
-    loadArchive();
+    await loadArchive();
   };
 
   // Move Target Execution
-  const handleMoveSubmit = (e: React.FormEvent) => {
+  const handleMoveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (selectedFolderForAction) {
-        ArchiveService.moveFolder(selectedFolderForAction.id, targetDestinationFolderId);
+        await ArchiveService.moveFolder(selectedFolderForAction.id, targetDestinationFolderId);
         showToast('Folder berhasil dipindahkan.', 'success');
       } else if (selectedFileForAction) {
-        ArchiveService.moveFile(selectedFileForAction.id, targetDestinationFolderId);
+        await ArchiveService.moveFile(selectedFileForAction.id, targetDestinationFolderId);
         showToast('File berhasil dipindahkan.', 'success');
       }
       setIsMoveModalOpen(false);
       setSelectedFolderForAction(null);
       setSelectedFileForAction(null);
-      loadArchive();
+      await loadArchive();
     } catch (err: any) {
       showToast(err.message || 'Gagal memindahkan item', 'error');
     }
@@ -309,19 +319,19 @@ export const ArchivePage: React.FC = () => {
   const getFileIcon = (ext: string) => {
     switch (ext.toLowerCase()) {
       case 'pdf':
-        return <FileText className="w-6 h-6 text-brand-pink stroke-[2.5]" />;
+        return <FileText className="w-6 h-6 text-brand-navy stroke-[2.5]" />;
       case 'doc':
       case 'docx':
       case 'txt':
         return <FileText className="w-6 h-6 text-brand-blue stroke-[2.5]" />;
       case 'xls':
       case 'xlsx':
-        return <FileSpreadsheet className="w-6 h-6 text-brand-green stroke-[2.5]" />;
+        return <FileSpreadsheet className="w-6 h-6 text-brand-cyan stroke-[2.5]" />;
       case 'jpg':
       case 'jpeg':
       case 'png':
       case 'webp':
-        return <FileImage className="w-6 h-6 text-brand-yellow stroke-[2.5]" />;
+        return <FileImage className="w-6 h-6 text-brand-sky stroke-[2.5]" />;
       case 'zip':
         return <FileArchive className="w-6 h-6 text-brand-secondary stroke-[2.5]" />;
       default:
@@ -329,8 +339,7 @@ export const ArchivePage: React.FC = () => {
     }
   };
 
-  // All available destination folders for move dialog
-  const allUserFolders = user ? ArchiveService.getAllUserFolders(user.id) : [];
+
 
   return (
     <div className="space-y-5">
@@ -346,7 +355,7 @@ export const ArchivePage: React.FC = () => {
         {/* Primary Action Buttons */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
           <RetroButton
-            variant="yellow"
+            variant="white"
             size="sm"
             leftIcon={<FolderPlus className="w-4 h-4 stroke-[3]" />}
             onClick={() => setIsCreateFolderModalOpen(true)}
@@ -355,7 +364,7 @@ export const ArchivePage: React.FC = () => {
           </RetroButton>
 
           <RetroButton
-            variant="green"
+            variant="blue"
             size="sm"
             leftIcon={<Upload className="w-4 h-4 stroke-[3]" />}
             onClick={() => setIsUploadModalOpen(true)}
@@ -374,8 +383,8 @@ export const ArchivePage: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari folder atau dokumen..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs font-medium rounded-lg border-2 border-brand-black bg-brand-cream/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-yellow"
+            placeholder="Cari folder atau dokumen kuliah..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs font-medium rounded-lg border-2 border-brand-black bg-brand-ice/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
           />
           {searchQuery && (
             <button
@@ -395,7 +404,7 @@ export const ArchivePage: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="border-2 border-brand-black rounded-lg px-2 py-1 bg-brand-cream text-xs font-bold cursor-pointer focus:outline-none"
+              className="border-2 border-brand-black rounded-lg px-2 py-1 bg-brand-ice text-xs font-bold cursor-pointer focus:outline-none text-brand-black"
             >
               <option value="name">Nama</option>
               <option value="date">Tanggal</option>
@@ -403,7 +412,7 @@ export const ArchivePage: React.FC = () => {
             </select>
             <button
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-              className="px-2 py-1 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-cream text-xs font-bold shadow-xs"
+              className="px-2 py-1 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-ice text-xs font-bold shadow-xs cursor-pointer"
               title="Balik Urutan"
             >
               {sortDirection === 'asc' ? '↑ A-Z' : '↓ Z-A'}
@@ -413,11 +422,11 @@ export const ArchivePage: React.FC = () => {
           <div className="h-5 w-0.5 bg-brand-black/20 mx-1" />
 
           {/* Grid vs List View Toggle */}
-          <div className="flex items-center border-2 border-brand-black rounded-lg overflow-hidden bg-brand-cream shadow-xs">
+          <div className="flex items-center border-2 border-brand-black rounded-lg overflow-hidden bg-brand-ice shadow-xs">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 ${
-                viewMode === 'grid' ? 'bg-brand-yellow text-brand-black' : 'hover:bg-white'
+              className={`p-1.5 cursor-pointer ${
+                viewMode === 'grid' ? 'bg-brand-blue text-white' : 'hover:bg-white text-brand-black'
               }`}
               title="Tampilan Grid"
             >
@@ -425,8 +434,8 @@ export const ArchivePage: React.FC = () => {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-1.5 ${
-                viewMode === 'list' ? 'bg-brand-yellow text-brand-black' : 'hover:bg-white'
+              className={`p-1.5 cursor-pointer ${
+                viewMode === 'list' ? 'bg-brand-blue text-white' : 'hover:bg-white text-brand-black'
               }`}
               title="Tampilan Daftar (List)"
             >
@@ -439,20 +448,20 @@ export const ArchivePage: React.FC = () => {
       {/* 3. Empty State (Instructional and Friendly) */}
       {filteredFolders.length === 0 && sortedFiles.length === 0 && (
         <div className="bg-white border-3 border-brand-black rounded-2xl p-8 sm:p-12 text-center space-y-4 shadow-retro">
-          <div className="w-20 h-20 rounded-2xl border-3 border-brand-black bg-brand-yellow/30 mx-auto flex items-center justify-center">
-            <Folder className="w-10 h-10 text-brand-black stroke-[2.5]" />
+          <div className="w-20 h-20 rounded-2xl border-3 border-brand-black bg-brand-ice mx-auto flex items-center justify-center">
+            <Folder className="w-10 h-10 text-brand-navy stroke-[2.5]" />
           </div>
           <div className="space-y-1">
             <h3 className="font-display font-black text-2xl text-brand-black">
               Folder ini masih kosong.
             </h3>
             <p className="text-sm font-medium text-brand-secondary max-w-sm mx-auto">
-              Yuk, mulai simpan materi kuliahmu di sini agar belajar makin teratur dan bebas panik saat ujian!
+              Yuk, mulai simpan materi kuliah dan tugas kita di sini agar belajar makin teratur dan bebas panik saat ujian!
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
             <RetroButton
-              variant="green"
+              variant="blue"
               size="md"
               leftIcon={<Upload className="w-4 h-4 stroke-[3]" />}
               onClick={() => setIsUploadModalOpen(true)}
@@ -460,7 +469,7 @@ export const ArchivePage: React.FC = () => {
               Upload Dokumen
             </RetroButton>
             <RetroButton
-              variant="yellow"
+              variant="white"
               size="md"
               leftIcon={<FolderPlus className="w-4 h-4 stroke-[3]" />}
               onClick={() => setIsCreateFolderModalOpen(true)}
@@ -489,11 +498,14 @@ export const ArchivePage: React.FC = () => {
           >
             {filteredFolders.map((f) => {
               const folderColors: Record<string, string> = {
-                yellow: 'bg-brand-yellow/30 border-brand-black',
-                green: 'bg-brand-green/20 border-brand-black',
-                pink: 'bg-brand-pink/30 border-brand-black',
                 blue: 'bg-brand-blue/20 border-brand-black',
-                cream: 'bg-brand-cream border-brand-black',
+                sky: 'bg-brand-sky/20 border-brand-black',
+                navy: 'bg-brand-navy/20 border-brand-black',
+                ice: 'bg-brand-ice border-brand-black',
+                yellow: 'bg-brand-sky/20 border-brand-black',
+                green: 'bg-brand-blue/20 border-brand-black',
+                pink: 'bg-brand-navy/20 border-brand-black',
+                cream: 'bg-brand-ice border-brand-black',
               };
 
               return (
@@ -501,12 +513,12 @@ export const ArchivePage: React.FC = () => {
                   key={f.id}
                   onClick={() => setCurrentFolder(f.id)}
                   className={`group relative p-3.5 rounded-xl border-2 transition-all cursor-pointer shadow-retro-sm hover:shadow-retro hover:-translate-y-0.5 bg-white ${
-                    folderColors[f.color || 'yellow']
+                    folderColors[f.color || 'blue']
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-lg border-2 border-brand-black bg-brand-yellow flex items-center justify-center flex-shrink-0 shadow-xs">
+                      <div className="w-9 h-9 rounded-lg border-2 border-brand-black bg-brand-sky flex items-center justify-center flex-shrink-0 shadow-xs">
                         <Folder className="w-5 h-5 text-brand-black fill-brand-black/10 stroke-[2.5]" />
                       </div>
                       <div className="min-w-0">
@@ -528,7 +540,7 @@ export const ArchivePage: React.FC = () => {
                       >
                         <Star
                           className={`w-3.5 h-3.5 ${
-                            f.isFavorite ? 'fill-brand-yellow text-brand-black' : 'text-brand-secondary'
+                            f.isFavorite ? 'fill-brand-sky text-brand-navy' : 'text-brand-secondary'
                           }`}
                         />
                       </button>
@@ -563,7 +575,7 @@ export const ArchivePage: React.FC = () => {
                           e.stopPropagation();
                           handleDeleteFolder(f.id);
                         }}
-                        className="p-1 rounded hover:bg-brand-pink text-brand-black"
+                        className="p-1 rounded hover:bg-brand-ice text-brand-black"
                         title="Hapus Folder"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -592,7 +604,7 @@ export const ArchivePage: React.FC = () => {
                 <div
                   key={file.id}
                   onClick={() => handlePreviewFile(file)}
-                  className="group relative p-4 rounded-xl border-2 border-brand-black bg-white hover:bg-brand-cream/30 transition-all cursor-pointer shadow-retro-sm hover:shadow-retro hover:-translate-y-0.5 flex flex-col justify-between h-44"
+                  className="group relative p-4 rounded-xl border-2 border-brand-black bg-white hover:bg-brand-ice/30 transition-all cursor-pointer shadow-retro-sm hover:shadow-retro hover:-translate-y-0.5 flex flex-col justify-between h-44"
                 >
                   <div>
                     {/* Top row: Extension icon & favorite */}
@@ -602,12 +614,12 @@ export const ArchivePage: React.FC = () => {
                       </div>
                       <button
                         onClick={(e) => handleToggleFavoriteFile(file, e)}
-                        className="p-1 rounded hover:bg-brand-yellow/30"
+                        className="p-1 rounded hover:bg-brand-ice"
                       >
                         <Star
                           className={`w-4 h-4 ${
                             file.isFavorite
-                              ? 'fill-brand-yellow text-brand-black'
+                              ? 'fill-brand-sky text-brand-navy'
                               : 'text-brand-secondary'
                           }`}
                         />
@@ -616,7 +628,7 @@ export const ArchivePage: React.FC = () => {
 
                     <div className="mt-3">
                       <div
-                        className="font-heading font-extrabold text-xs text-brand-black line-clamp-2"
+                        className="font-heading font-extrabold text-xs text-brand-black line-clamp-2 break-all"
                         title={file.fileName}
                       >
                         {file.fileName}
@@ -640,7 +652,7 @@ export const ArchivePage: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={(e) => handleDownloadFile(file, e)}
-                        className="p-1 rounded hover:bg-brand-green/20 text-brand-black"
+                        className="p-1 rounded hover:bg-brand-ice text-brand-black"
                         title="Unduh File"
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -676,7 +688,7 @@ export const ArchivePage: React.FC = () => {
                           e.stopPropagation();
                           handleDeleteFile(file.id);
                         }}
-                        className="p-1 rounded hover:bg-brand-pink/40 text-brand-black"
+                        className="p-1 rounded hover:bg-brand-ice text-brand-black"
                         title="Hapus File"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -689,7 +701,7 @@ export const ArchivePage: React.FC = () => {
           ) : (
             /* List View */
             <div className="bg-white border-2 border-brand-black rounded-xl overflow-hidden shadow-retro-sm">
-              <div className="grid grid-cols-12 px-4 py-2.5 bg-brand-cream border-b-2 border-brand-black text-[11px] font-mono font-bold text-brand-black uppercase">
+              <div className="grid grid-cols-12 px-4 py-2.5 bg-brand-ice border-b-2 border-brand-black text-[11px] font-mono font-bold text-brand-black uppercase">
                 <div className="col-span-6">Nama Dokumen</div>
                 <div className="col-span-2 text-right">Ukuran</div>
                 <div className="col-span-2 text-center">Format</div>
@@ -701,7 +713,7 @@ export const ArchivePage: React.FC = () => {
                   <div
                     key={file.id}
                     onClick={() => handlePreviewFile(file)}
-                    className="grid grid-cols-12 items-center px-4 py-3 hover:bg-brand-yellow/10 transition-colors cursor-pointer text-xs"
+                    className="grid grid-cols-12 items-center px-4 py-3 hover:bg-brand-ice/40 transition-colors cursor-pointer text-xs"
                   >
                     <div className="col-span-6 flex items-center gap-2.5 min-w-0 pr-2">
                       <div className="flex-shrink-0">{getFileIcon(file.extension)}</div>
@@ -715,7 +727,7 @@ export const ArchivePage: React.FC = () => {
                     </div>
 
                     <div className="col-span-2 text-center">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-brand-black bg-brand-cream uppercase">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-brand-black bg-brand-ice uppercase">
                         {file.extension}
                       </span>
                     </div>
@@ -723,7 +735,7 @@ export const ArchivePage: React.FC = () => {
                     <div className="col-span-2 flex items-center justify-end gap-1.5">
                       <button
                         onClick={(e) => handleDownloadFile(file, e)}
-                        className="p-1.5 rounded hover:bg-brand-cream border border-brand-black shadow-xs"
+                        className="p-1.5 rounded hover:bg-brand-ice border border-brand-black shadow-xs"
                         title="Unduh"
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -733,7 +745,7 @@ export const ArchivePage: React.FC = () => {
                           e.stopPropagation();
                           handleDeleteFile(file.id);
                         }}
-                        className="p-1.5 rounded hover:bg-brand-pink border border-brand-black shadow-xs"
+                        className="p-1.5 rounded hover:bg-brand-ice border border-brand-black shadow-xs"
                         title="Hapus"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -751,23 +763,23 @@ export const ArchivePage: React.FC = () => {
       <RetroModal
         isOpen={isCreateFolderModalOpen}
         onClose={() => setIsCreateFolderModalOpen(false)}
-        title="BUAT FOLDER BARU"
+        title="BUAT FOLDER MATERI BARU"
         tag="ARCHIVE"
-        headerBg="yellow"
+        headerBg="blue"
       >
         <form onSubmit={handleCreateFolder} className="space-y-4">
           <div>
             <label className="block text-xs font-heading font-extrabold uppercase mb-1.5">
-              Nama Folder Perkuliahan
+              Nama Folder Materi Kuliah
             </label>
             <input
               type="text"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Contoh: Algoritma Pemrograman, Pertemuan 01"
+              placeholder="Contoh: Algoritma Pemrograman, Catatan Kuliah"
               required
               autoFocus
-              className="w-full px-3.5 py-2.5 rounded-lg border-2 border-brand-black text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-yellow"
+              className="w-full px-3.5 py-2.5 rounded-lg border-2 border-brand-black text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-blue"
             />
           </div>
 
@@ -779,7 +791,7 @@ export const ArchivePage: React.FC = () => {
               type="text"
               value={newFolderDesc}
               onChange={(e) => setNewFolderDesc(e.target.value)}
-              placeholder="Catatan topik materi kuliah..."
+              placeholder="Catatan topik materi kuliah kita..."
               className="w-full px-3.5 py-2 rounded-lg border-2 border-brand-black text-xs"
             />
           </div>
@@ -790,11 +802,11 @@ export const ArchivePage: React.FC = () => {
             </label>
             <div className="flex items-center gap-3">
               {[
-                { name: 'yellow', bg: '#FFE500' },
-                { name: 'green', bg: '#00A968' },
-                { name: 'pink', bg: '#F381A6' },
-                { name: 'blue', bg: '#3989C5' },
-                { name: 'cream', bg: '#FFF0D9' },
+                { name: 'blue', bg: '#2563EB' },
+                { name: 'sky', bg: '#38BDF8' },
+                { name: 'navy', bg: '#1E3A8A' },
+                { name: 'ice', bg: '#BAE6FD' },
+                { name: 'cyan', bg: '#0EA5E9' },
               ].map((c) => (
                 <button
                   key={c.name}
@@ -818,7 +830,7 @@ export const ArchivePage: React.FC = () => {
             >
               Batal
             </RetroButton>
-            <RetroButton variant="yellow" size="sm" type="submit">
+            <RetroButton variant="blue" size="sm" type="submit">
               Buat Folder
             </RetroButton>
           </div>
@@ -829,9 +841,9 @@ export const ArchivePage: React.FC = () => {
       <RetroModal
         isOpen={isUploadModalOpen}
         onClose={() => !isUploading && setIsUploadModalOpen(false)}
-        title="UPLOAD DOKUMEN AKADEMIK"
+        title="UPLOAD DOKUMEN KULIAH"
         tag="CLOUDFLARE R2"
-        headerBg="green"
+        headerBg="blue"
       >
         <div className="space-y-4">
           {/* Dropzone Container */}
@@ -844,9 +856,9 @@ export const ArchivePage: React.FC = () => {
                 setUploadFiles(Array.from(e.dataTransfer.files));
               }
             }}
-            className="border-3 border-dashed border-brand-black rounded-xl p-8 text-center bg-brand-cream/40 hover:bg-brand-cream/80 transition-colors cursor-pointer space-y-3"
+            className="border-3 border-dashed border-brand-black rounded-xl p-8 text-center bg-brand-ice/40 hover:bg-brand-ice/80 transition-colors cursor-pointer space-y-3"
           >
-            <UploadCloud className="w-12 h-12 text-brand-black mx-auto stroke-[2.5]" />
+            <UploadCloud className="w-12 h-12 text-brand-navy mx-auto stroke-[2.5]" />
             <div>
               <div className="font-heading font-extrabold text-sm text-brand-black">
                 Klik atau tarik file ke sini untuk mengunggah
@@ -896,9 +908,9 @@ export const ArchivePage: React.FC = () => {
                 <span>Mengunggah...</span>
                 <span>{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-brand-cream border-2 border-brand-black rounded-full h-3.5 overflow-hidden">
+              <div className="w-full bg-brand-ice border-2 border-brand-black rounded-full h-3.5 overflow-hidden">
                 <div
-                  className="bg-brand-green h-full transition-all duration-300"
+                  className="bg-brand-blue h-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -918,7 +930,7 @@ export const ArchivePage: React.FC = () => {
               Batal
             </RetroButton>
             <RetroButton
-              variant="green"
+              variant="blue"
               size="sm"
               isLoading={isUploading}
               disabled={uploadFiles.length === 0}
@@ -936,7 +948,7 @@ export const ArchivePage: React.FC = () => {
         onClose={() => setIsRenameModalOpen(false)}
         title="UBAH NAMA ITEM"
         tag="EDIT"
-        headerBg="pink"
+        headerBg="blue"
       >
         <form onSubmit={handleRenameSubmit} className="space-y-4">
           <div>
@@ -957,7 +969,7 @@ export const ArchivePage: React.FC = () => {
             <RetroButton variant="outline" size="sm" type="button" onClick={() => setIsRenameModalOpen(false)}>
               Batal
             </RetroButton>
-            <RetroButton variant="yellow" size="sm" type="submit">
+            <RetroButton variant="blue" size="sm" type="submit">
               Simpan Perubahan
             </RetroButton>
           </div>
@@ -982,12 +994,12 @@ export const ArchivePage: React.FC = () => {
               onChange={(e) => setTargetDestinationFolderId(e.target.value || null)}
               className="w-full px-3 py-2 rounded-lg border-2 border-brand-black bg-white text-sm"
             >
-              <option value="">📁 Root (Arsip Utama)</option>
+              <option value="">[Root] Arsip Utama</option>
               {allUserFolders
                 .filter((f) => f.id !== selectedFolderForAction?.id)
                 .map((f) => (
                   <option key={f.id} value={f.id}>
-                    📂 {f.name}
+                    {f.name}
                   </option>
                 ))}
             </select>
@@ -997,7 +1009,7 @@ export const ArchivePage: React.FC = () => {
             <RetroButton variant="outline" size="sm" type="button" onClick={() => setIsMoveModalOpen(false)}>
               Batal
             </RetroButton>
-            <RetroButton variant="green" size="sm" type="submit">
+            <RetroButton variant="blue" size="sm" type="submit">
               Pindahkan Sekarang
             </RetroButton>
           </div>
@@ -1011,11 +1023,11 @@ export const ArchivePage: React.FC = () => {
           onClose={() => setPreviewFile(null)}
           title={`PRATINJAU: ${previewFile.item.fileName}`}
           tag={previewFile.item.extension.toUpperCase()}
-          headerBg="cream"
+          headerBg="blue"
           maxWidth="3xl"
         >
           <div className="space-y-4">
-            <div className="border-2 border-brand-black rounded-xl overflow-hidden bg-brand-cream/30 min-h-[300px] max-h-[60vh] flex items-center justify-center p-4">
+            <div className="border-2 border-brand-black rounded-xl overflow-hidden bg-brand-ice/30 min-h-[300px] max-h-[60vh] flex items-center justify-center p-4">
               {['jpg', 'jpeg', 'png', 'webp'].includes(previewFile.item.extension.toLowerCase()) ? (
                 <img
                   src={previewFile.url}
@@ -1046,7 +1058,7 @@ export const ArchivePage: React.FC = () => {
                 Ukuran: {(previewFile.item.fileSize / 1024).toFixed(0)} KB
               </span>
               <RetroButton
-                variant="yellow"
+                variant="blue"
                 size="sm"
                 leftIcon={<Download className="w-4 h-4 stroke-[3]" />}
                 onClick={() => handleDownloadFile(previewFile.item)}

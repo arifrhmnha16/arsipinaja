@@ -19,7 +19,7 @@ export const RetroBreadcrumbs: React.FC<RetroBreadcrumbsProps> = ({
 }) => {
   return (
     <nav
-      className={`flex items-center flex-wrap gap-1.5 bg-brand-cream border-2 border-brand-black px-3.5 py-2 rounded-lg shadow-retro-sm text-sm font-bold ${className}`}
+      className={`flex items-center flex-wrap gap-1.5 bg-brand-ice border-2 border-brand-black px-3.5 py-2 rounded-lg shadow-retro-sm text-sm font-bold ${className}`}
       aria-label="Breadcrumb"
     >
       {items.map((item, index) => {
@@ -36,7 +36,7 @@ export const RetroBreadcrumbs: React.FC<RetroBreadcrumbsProps> = ({
               disabled={isLast}
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded transition-all select-none ${
                 isLast
-                  ? 'bg-brand-yellow border border-brand-black text-brand-black font-extrabold cursor-default shadow-xs'
+                  ? 'bg-brand-blue border border-brand-black text-white font-extrabold cursor-default shadow-xs'
                   : 'hover:bg-brand-black/10 text-brand-black/80 hover:text-brand-black cursor-pointer'
               }`}
             >

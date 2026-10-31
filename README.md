@@ -1,24 +1,24 @@
-# ArsipinAja 🎓📂
-> **"Biar Kuliah Nggak Berantakan."**  
-> *Academic Document Archive & Task Management Platform untuk Mahasiswa.*
+# ArsipinAja 💙📂
+> **"Biar Kuliah & Belajar Kita Berdua Nggak Berantakan."**  
+> *Private Couple Study Archive & Task Management Platform.*
 
-ArsipinAja adalah platform multi-user berbasis web untuk mahasiswa yang mengintegrasikan pengarsipan dokumen kuliah bertingkat (Google Drive-style), pemantau deadline tugas interaktif, kalender akademik, dan sistem pengingat otomatis ke smartphone via **Telegram Bot API**.
+ArsipinAja adalah platform arsip materi kuliah dan manajemen tugas yang dibuat khusus untuk kita berdua. Memungkinkan menyimpan slide dosen, PDF buku, catatan kuliah, mengatur tugas bersama, memantau deadline tugas kuliah, dan menerima pengingat otomatis langsung ke smartphone via **Telegram Bot API**.
 
-Aplikasi didesain khusus mengacu pada identitas visual **Nyonyo Channel Retro Graphic Design**: typography playful & rounded, palet warna berani (*Primary Yellow*, *Vibrant Green*, *Accent Pink*, *Sky Blue*, *Cream*), border brutalist tebal, browser window chrome, hard shadow, dan pembatas checkerboard retro.
+Aplikasi didesain menggunakan identitas retro-neo-brutalist dengan **100% Keluarga Warna Biru** (Royal Blue, Deep Navy, Retro Sky Blue, Electric Cyan, Soft Ice Blue), border tegas, hard shadow retro, dan tipografi yang modern serta nyaman dipandang.
 
 ---
 
-## 🎨 Visual Identity & Design Tokens
+## 🎨 Visual Identity & Blue Family Design Tokens
 
-Mengacu langsung pada visual referensi:
-- **Primary Yellow**: `#FFE500`
-- **Primary Green**: `#00A968`
-- **Accent Pink**: `#F381A6`
-- **Accent Blue**: `#3989C5`
-- **Cream Surface**: `#FFF0D9`
-- **Background**: `#FFF9EF`
-- **Border & Text**: `#171717` (2px - 3px solid outline)
-- **Hard Shadow**: `4px 4px 0px #171717` (`shadow-retro`)
+Mengacu pada palet warna serasi keluarga biru:
+- **Primary Royal Blue**: `#2563EB`
+- **Deep Navy**: `#1E3A8A`
+- **Retro Sky Blue**: `#38BDF8`
+- **Electric Cyan**: `#0EA5E9`
+- **Soft Ice Blue**: `#E0F2FE`
+- **Canvas Background**: `#F0F7FF`
+- **Border & Ink**: `#171717` (2px - 3px solid brutalist outline)
+- **Hard Shadow**: `4px 4px 0px #171717` (`shadow-retro`) / `shadow-retro-navy`
 
 ---
 
@@ -158,11 +158,9 @@ firebase deploy --only firestore:rules
 
 ---
 
-## 🔒 Fitur Keamanan & Reliabilitas
-- **Zero Public Registration**: Seluruh akun mahasiswa dibuat resmi oleh Administrator Kampus via server.
-- **Data Isolation**: Firestore Security Rules membatasi akses baca/tulis hanya pada `userId` pemilik dokumen.
-- **Private Cloudflare R2**: Tidak ada bucket publik; seluruh download & preview divalidasi melalui token.
-- **Zero Broken Buttons**: Mode offline lokal menggunakan IndexedDB Blobs sehingga upload, download, dan preview file bekerja langsung tanpa dependensi luar yang terputus.
+## 🧪 Panduan Pengujian Fitur
+Seluruh panduan langkah demi langkah pengujian fitur (Mahasiswa & Admin) beserta checklist uji dapat dibaca di:
+👉 **[PANDUAN_PENGUJIAN_FITUR.md](file:///d:/personal%20project/arsipinaja/TESTING_FITUR.md)**
 
 ---
 *ArsipinAja © 2026 — Biar Kuliah Nggak Berantakan.*

@@ -19,8 +19,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-brand-yellow flex items-center justify-center font-display font-black text-2xl text-brand-black">
-        Memuat ArsipinAja...
+      <div className="min-h-screen bg-brand-bg flex flex-col items-center justify-center font-display text-brand-black gap-3 select-none">
+        <div className="w-12 h-12 rounded-2xl border-3 border-brand-black bg-brand-blue text-white flex items-center justify-center font-black text-2xl shadow-retro">
+          A
+        </div>
+        <div className="font-heading font-extrabold text-sm tracking-tight text-brand-navy">
+          Memuat Ruang Berdua...
+        </div>
       </div>
     );
   }

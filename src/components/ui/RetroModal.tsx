@@ -17,7 +17,7 @@ export const RetroModal: React.FC<RetroModalProps> = ({
   onClose,
   title,
   tag = 'WINDOW',
-  headerBg = 'yellow',
+  headerBg = 'blue',
   children,
   maxWidth = 'lg',
 }) => {

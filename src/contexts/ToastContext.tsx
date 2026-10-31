@@ -42,11 +42,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           let icon = <Info className="w-5 h-5 text-brand-blue flex-shrink-0" />;
 
           if (toast.type === 'success') {
-            bgClass = 'bg-brand-green text-white';
-            icon = <CheckCircle2 className="w-5 h-5 text-brand-yellow flex-shrink-0" />;
+            bgClass = 'bg-brand-blue text-white';
+            icon = <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />;
           } else if (toast.type === 'error') {
-            bgClass = 'bg-brand-pink text-brand-black';
-            icon = <AlertTriangle className="w-5 h-5 text-brand-black flex-shrink-0" />;
+            bgClass = 'bg-brand-navy text-white';
+            icon = <AlertTriangle className="w-5 h-5 text-brand-sky flex-shrink-0" />;
           }
 
           return (

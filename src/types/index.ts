@@ -26,7 +26,7 @@ export interface FolderItem {
   name: string;
   parentId: string | null; // null means root folder
   description?: string;
-  color?: string; // Retro color tag: yellow, green, pink, blue
+  color?: string; // Retro color tag: blue, sky, navy, ice, yellow
   isFavorite: boolean;
   isDeleted: boolean;
   deletedAt?: string | null;

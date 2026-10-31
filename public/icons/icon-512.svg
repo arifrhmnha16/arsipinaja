@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <!-- Rounded App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="#2563EB"/>
+  
+  <!-- Subtle Inner Border -->
+  <rect x="8" y="8" width="496" height="496" rx="104" stroke="#171717" stroke-width="12" fill="none"/>
+
+  <!-- Scaled Archive Dossier Vault -->
+  <g transform="translate(64, 74) scale(10.66)">
+    <!-- Back Folder / Dossier Tab -->
+    <path
+      d="M6 11C6 9.34315 7.34315 8 9 8H16L19 11H27C28.6569 11 30 12.3431 30 14V17H6V11Z"
+      fill="#38BDF8"
+      stroke="#171717"
+      stroke-width="1.8"
+      stroke-linejoin="round"
+    />
+
+    <!-- File Document Paper Peeking with folded ear -->
+    <path
+      d="M10 8V5C10 4.44772 10.4477 4 11 4H20L23 7V11"
+      fill="#FFFFFF"
+      stroke="#171717"
+      stroke-width="1.6"
+      stroke-linejoin="round"
+    />
+    <line x1="13" y1="7" x2="18" y2="7" stroke="#38BDF8" stroke-width="1.2" stroke-linecap="round" />
+
+    <!-- Front Archival Storage Box / Drawer -->
+    <rect
+      x="5"
+      y="13"
+      width="26"
+      height="18"
+      rx="3.5"
+      fill="#FFFFFF"
+      stroke="#171717"
+      stroke-width="2"
+    />
+
+    <!-- Drawer Top Division -->
+    <line x1="5" y1="18" x2="31" y2="18" stroke="#171717" stroke-width="1.5" />
+
+    <!-- Handle / Index Tag Slot -->
+    <rect
+      x="13"
+      y="22"
+      width="10"
+      height="4.5"
+      rx="1.5"
+      fill="#2563EB"
+      stroke="#171717"
+      stroke-width="1.4"
+    />
+    <line
+      x1="15.5"
+      y1="24.25"
+      x2="20.5"
+      y2="24.25"
+      stroke="#FFFFFF"
+      stroke-width="1.2"
+      stroke-linecap="round"
+    />
+
+    <!-- Twin accent rivets -->
+    <circle cx="8.5" cy="24.25" r="1" fill="#38BDF8" stroke="#171717" stroke-width="0.8" />
+    <circle cx="27.5" cy="24.25" r="1" fill="#38BDF8" stroke="#171717" stroke-width="0.8" />
+
+    <!-- Retro Sparkle Star -->
+    <path
+      d="M30 2L30.9 4.7L33.6 5.6L30.9 6.5L30 9.2L29.1 6.5L26.4 5.6L29.1 4.7L30 2Z"
+      fill="#FACC15"
+      stroke="#171717"
+      stroke-width="0.9"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

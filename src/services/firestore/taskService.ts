@@ -1,37 +1,53 @@
-import { TaskItem, TaskPriority, TaskStatus, TaskChecklistItem, TaskReminderSettings } from '../../types';
-import { INITIAL_TASKS } from '../mockData';
-
-const TASKS_KEY = 'arsipinaja_tasks';
-
-function getTasks(): TaskItem[] {
-  const data = localStorage.getItem(TASKS_KEY);
-  if (!data) {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(INITIAL_TASKS));
-    return INITIAL_TASKS;
-  }
-  try {
-    return JSON.parse(data);
-  } catch {
-    return INITIAL_TASKS;
-  }
-}
-
-function saveTasks(tasks: TaskItem[]) {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
-}
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+} from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { TaskItem, TaskPriority, TaskStatus, TaskReminderSettings } from '../../types';
 
 export class TaskService {
-  static getTasks(userId: string): TaskItem[] {
-    const all = getTasks();
-    return all.filter((t) => t.userId === userId);
+  static async getTasks(userId: string): Promise<TaskItem[]> {
+    if (!db) return [];
+    try {
+      const q = query(
+        collection(db, 'tasks'),
+        where('userId', '==', userId)
+      );
+      const snap = await getDocs(q);
+      const list: TaskItem[] = [];
+      snap.forEach((d) => list.push({ ...(d.data() as TaskItem), id: d.id }));
+      // Sort by closest deadline in memory
+      return list.sort((a, b) => {
+        const da = new Date(`${a.deadlineDate}T${a.deadlineTime || '23:59'}`).getTime();
+        const dbTime = new Date(`${b.deadlineDate}T${b.deadlineTime || '23:59'}`).getTime();
+        return da - dbTime;
+      });
+    } catch (err) {
+      console.error('Error fetching tasks from Firestore:', err);
+      return [];
+    }
   }
 
-  static getTaskById(taskId: string): TaskItem | null {
-    const all = getTasks();
-    return all.find((t) => t.id === taskId) || null;
+  static async getTaskById(taskId: string): Promise<TaskItem | null> {
+    if (!db) return null;
+    try {
+      const snap = await getDoc(doc(db, 'tasks', taskId));
+      if (!snap.exists()) return null;
+      return { ...(snap.data() as TaskItem), id: snap.id };
+    } catch {
+      return null;
+    }
   }
 
-  static createTask(params: {
+  static async createTask(params: {
     userId: string;
     title: string;
     description?: string;
@@ -44,10 +60,10 @@ export class TaskService {
     attachments?: string[];
     notes?: string;
     reminderSettings?: TaskReminderSettings;
-  }): TaskItem {
-    const tasks = getTasks();
-    const newTask: TaskItem = {
-      id: 'task_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now(),
+  }): Promise<TaskItem> {
+    if (!db) throw new Error('Database Firestore tidak terhubung.');
+
+    const newTaskData = {
       userId: params.userId,
       title: params.title.trim(),
       description: params.description?.trim() || '',
@@ -56,7 +72,7 @@ export class TaskService {
       deadlineDate: params.deadlineDate,
       deadlineTime: params.deadlineTime || '23:59',
       priority: params.priority,
-      status: 'todo',
+      status: 'todo' as TaskStatus,
       checklist: params.checklist || [],
       attachments: params.attachments || [],
       notes: params.notes || '',
@@ -70,56 +86,32 @@ export class TaskService {
       updatedAt: new Date().toISOString(),
     };
 
-    tasks.push(newTask);
-    saveTasks(tasks);
-    return newTask;
+    const docRef = await addDoc(collection(db, 'tasks'), newTaskData);
+    return { ...newTaskData, id: docRef.id };
   }
 
-  static updateTask(taskId: string, updates: Partial<TaskItem>): TaskItem {
-    const tasks = getTasks();
-    const index = tasks.findIndex((t) => t.id === taskId);
-    if (index === -1) throw new Error('Tugas tidak ditemukan.');
-
-    const updated = {
-      ...tasks[index],
+  static async updateTask(taskId: string, updates: Partial<TaskItem>): Promise<void> {
+    if (!db) return;
+    await updateDoc(doc(db, 'tasks', taskId), {
       ...updates,
       updatedAt: new Date().toISOString(),
-    };
-    tasks[index] = updated;
-    saveTasks(tasks);
-    return updated;
+    });
   }
 
-  static deleteTask(taskId: string): void {
-    const tasks = getTasks();
-    const filtered = tasks.filter((t) => t.id !== taskId);
-    saveTasks(filtered);
+  static async deleteTask(taskId: string): Promise<void> {
+    if (!db) return;
+    await deleteDoc(doc(db, 'tasks', taskId));
   }
 
-  static toggleStatus(taskId: string, newStatus: TaskStatus): TaskItem {
-    return this.updateTask(taskId, { status: newStatus });
+  static async toggleStatus(taskId: string, newStatus: TaskStatus): Promise<void> {
+    await this.updateTask(taskId, { status: newStatus });
   }
 
-  static toggleChecklistItem(taskId: string, itemId: string): TaskItem {
-    const tasks = getTasks();
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) throw new Error('Tugas tidak ditemukan.');
-
-    task.checklist = task.checklist.map((c) =>
+  static async toggleChecklistItem(task: TaskItem, itemId: string): Promise<void> {
+    const updatedChecklist = task.checklist.map((c) =>
       c.id === itemId ? { ...c, completed: !c.completed } : c
     );
-    task.updatedAt = new Date().toISOString();
-    saveTasks(tasks);
-    return task;
-  }
-
-  static getSubjects(userId: string): string[] {
-    const tasks = this.getTasks(userId);
-    const set = new Set<string>();
-    tasks.forEach((t) => {
-      if (t.subject) set.add(t.subject);
-    });
-    return Array.from(set);
+    await this.updateTask(task.id, { checklist: updatedChecklist });
   }
 
   static isOverdue(task: TaskItem): boolean {

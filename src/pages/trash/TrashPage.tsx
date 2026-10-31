@@ -16,9 +16,9 @@ export const TrashPage: React.FC = () => {
   const [trashFiles, setTrashFiles] = useState<FileItem[]>([]);
   const [isConfirmEmptyModalOpen, setIsConfirmEmptyModalOpen] = useState(false);
 
-  const loadTrash = () => {
+  const loadTrash = async () => {
     if (!user) return;
-    const { folders, files } = ArchiveService.getTrash(user.id);
+    const { folders, files } = await ArchiveService.getTrash(user.id);
     setTrashFolders(folders);
     setTrashFiles(files);
   };
@@ -27,28 +27,28 @@ export const TrashPage: React.FC = () => {
     loadTrash();
   }, [user]);
 
-  const handleRestoreFolder = (id: string) => {
-    ArchiveService.restoreFolder(id);
+  const handleRestoreFolder = async (id: string) => {
+    await ArchiveService.restoreFolder(id);
     showToast('Folder berhasil dipulihkan ke Arsip.', 'success');
-    loadTrash();
+    await loadTrash();
   };
 
-  const handleRestoreFile = (id: string) => {
-    ArchiveService.restoreFile(id);
+  const handleRestoreFile = async (id: string) => {
+    await ArchiveService.restoreFile(id);
     showToast('Dokumen berhasil dipulihkan ke Arsip.', 'success');
-    loadTrash();
+    await loadTrash();
   };
 
-  const handlePermanentDeleteFolder = (id: string) => {
-    ArchiveService.permanentlyDeleteFolder(id);
+  const handlePermanentDeleteFolder = async (id: string) => {
+    await ArchiveService.permanentlyDeleteFolder(id);
     showToast('Folder dihapus permanen.', 'info');
-    loadTrash();
+    await loadTrash();
   };
 
   const handlePermanentDeleteFile = async (id: string) => {
     await ArchiveService.permanentlyDeleteFile(id);
     showToast('Dokumen dihapus permanen.', 'info');
-    loadTrash();
+    await loadTrash();
   };
 
   const handleEmptyTrash = async () => {
@@ -56,7 +56,7 @@ export const TrashPage: React.FC = () => {
     await ArchiveService.emptyTrash(user.id);
     showToast('Tempat sampah telah dikosongkan.', 'success');
     setIsConfirmEmptyModalOpen(false);
-    loadTrash();
+    await loadTrash();
   };
 
   const totalItems = trashFolders.length + trashFiles.length;
@@ -66,7 +66,7 @@ export const TrashPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-display font-black text-2xl text-brand-black flex items-center gap-2">
-            <Trash2 className="w-6 h-6 text-brand-pink" />
+            <Trash2 className="w-6 h-6 text-brand-navy" />
             <span>Tempat Sampah (Trash)</span>
           </h2>
           <p className="text-xs text-brand-secondary font-medium">
@@ -76,7 +76,7 @@ export const TrashPage: React.FC = () => {
 
         {totalItems > 0 && (
           <RetroButton
-            variant="pink"
+            variant="blue"
             size="sm"
             leftIcon={<AlertTriangle className="w-4 h-4 stroke-[2.5]" />}
             onClick={() => setIsConfirmEmptyModalOpen(true)}
@@ -103,7 +103,7 @@ export const TrashPage: React.FC = () => {
             <WindowCard
               title="FOLDER DI TEMPAT SAMPAH"
               tag={`${trashFolders.length} FOLDER`}
-              headerBg="pink"
+              headerBg="blue"
             >
               <div className="space-y-2">
                 {trashFolders.map((f) => (
@@ -123,20 +123,21 @@ export const TrashPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleRestoreFolder(f.id)}
-                        className="btn-retro px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-brand-green text-white inline-flex items-center gap-1 shadow-xs"
+                        className="btn-retro px-2 sm:px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-brand-blue text-white inline-flex items-center gap-1 shadow-xs"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>Pulihkan</span>
                       </button>
                       <button
                         onClick={() => handlePermanentDeleteFolder(f.id)}
-                        className="btn-retro px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-white hover:bg-brand-pink text-brand-black inline-flex items-center gap-1 shadow-xs"
+                        className="btn-retro px-2 sm:px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-white hover:bg-brand-ice text-brand-black inline-flex items-center gap-1 shadow-xs"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Hapus Permanen</span>
+                        <span className="hidden xs:inline">Hapus Permanen</span>
+                        <span className="xs:hidden">Hapus</span>
                       </button>
                     </div>
                   </div>
@@ -150,7 +151,7 @@ export const TrashPage: React.FC = () => {
             <WindowCard
               title="FILE DI TEMPAT SAMPAH"
               tag={`${trashFiles.length} BERKAS`}
-              headerBg="cream"
+              headerBg="blue"
             >
               <div className="space-y-2">
                 {trashFiles.map((file) => (
@@ -170,20 +171,21 @@ export const TrashPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleRestoreFile(file.id)}
-                        className="btn-retro px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-brand-green text-white inline-flex items-center gap-1 shadow-xs"
+                        className="btn-retro px-2 sm:px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-brand-blue text-white inline-flex items-center gap-1 shadow-xs"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>Pulihkan</span>
                       </button>
                       <button
                         onClick={() => handlePermanentDeleteFile(file.id)}
-                        className="btn-retro px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-white hover:bg-brand-pink text-brand-black inline-flex items-center gap-1 shadow-xs"
+                        className="btn-retro px-2 sm:px-2.5 py-1 text-xs font-bold rounded border border-brand-black bg-white hover:bg-brand-ice text-brand-black inline-flex items-center gap-1 shadow-xs"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Hapus Permanen</span>
+                        <span className="hidden xs:inline">Hapus Permanen</span>
+                        <span className="xs:hidden">Hapus</span>
                       </button>
                     </div>
                   </div>
@@ -200,7 +202,7 @@ export const TrashPage: React.FC = () => {
         onClose={() => setIsConfirmEmptyModalOpen(false)}
         title="KOSONGKAN TEMPAT SAMPAH"
         tag="WARNING"
-        headerBg="pink"
+        headerBg="blue"
         maxWidth="md"
       >
         <div className="space-y-4">
@@ -216,7 +218,7 @@ export const TrashPage: React.FC = () => {
             >
               Batal
             </RetroButton>
-            <RetroButton variant="pink" size="sm" onClick={handleEmptyTrash}>
+            <RetroButton variant="blue" size="sm" onClick={handleEmptyTrash}>
               Ya, Kosongkan Sekarang
             </RetroButton>
           </div>

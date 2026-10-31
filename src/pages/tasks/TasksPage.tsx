@@ -23,7 +23,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { TaskService } from '../../services/firestore/taskService';
 import { ArchiveService } from '../../services/firestore/archiveService';
 import { TelegramService } from '../../services/telegram/telegramService';
-import { TaskItem, TaskPriority, TaskStatus, TaskChecklistItem } from '../../types';
+import { TaskItem, TaskPriority, TaskStatus, TaskChecklistItem, FolderItem } from '../../types';
 import { WindowCard } from '../../components/ui/WindowCard';
 import { RetroButton } from '../../components/ui/RetroButton';
 import { RetroModal } from '../../components/ui/RetroModal';
@@ -58,15 +58,24 @@ export const TasksPage: React.FC = () => {
   const [checklistItems, setChecklistItems] = useState<{ id: string; title: string; completed: boolean }[]>([]);
   const [newChecklistText, setNewChecklistText] = useState('');
 
-  // Delete Confirmation Modal
+  // Delete Confirmation Modal & Folder Select
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
+  const [availableFolders, setAvailableFolders] = useState<FolderItem[]>([]);
 
-  const loadTasks = () => {
+  const loadTasks = async () => {
     if (!user) return;
-    const all = TaskService.getTasks(user.id);
-    const subs = TaskService.getSubjects(user.id);
-    setTasks(all);
-    setSubjects(subs);
+    try {
+      const [all, folders] = await Promise.all([
+        TaskService.getTasks(user.id),
+        ArchiveService.getAllUserFolders(user.id),
+      ]);
+      setTasks(all);
+      setAvailableFolders(folders);
+      const subs = Array.from(new Set(all.map((t) => t.subject).filter(Boolean)));
+      setSubjects(subs);
+    } catch (err) {
+      console.error('Error loading tasks:', err);
+    }
   };
 
   useEffect(() => {
@@ -150,12 +159,12 @@ export const TasksPage: React.FC = () => {
     setChecklistItems(checklistItems.filter((c) => c.id !== id));
   };
 
-  const handleSubmitTask = (e: React.FormEvent) => {
+  const handleSubmitTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !formTitle.trim() || !formSubject.trim() || !formDeadlineDate) return;
 
     if (editingTaskId) {
-      TaskService.updateTask(editingTaskId, {
+      await TaskService.updateTask(editingTaskId, {
         title: formTitle,
         description: formDescription,
         subject: formSubject,
@@ -168,7 +177,7 @@ export const TasksPage: React.FC = () => {
       });
       showToast('Tugas berhasil diperbarui!', 'success');
     } else {
-      TaskService.createTask({
+      await TaskService.createTask({
         userId: user.id,
         title: formTitle,
         description: formDescription,
@@ -184,30 +193,30 @@ export const TasksPage: React.FC = () => {
     }
 
     setIsModalOpen(false);
-    loadTasks();
+    await loadTasks();
   };
 
-  const handleToggleTaskStatus = (t: TaskItem) => {
+  const handleToggleTaskStatus = async (t: TaskItem) => {
     const nextStatus: TaskStatus = t.status === 'completed' ? 'todo' : 'completed';
-    TaskService.toggleStatus(t.id, nextStatus);
+    await TaskService.toggleStatus(t.id, nextStatus);
     showToast(
-      nextStatus === 'completed' ? 'Tugas ditandai selesai! 🎉' : 'Status tugas dikembalikan ke To Do',
+      nextStatus === 'completed' ? 'Tugas ditandai selesai!' : 'Status tugas dikembalikan ke To Do',
       'info'
     );
-    loadTasks();
+    await loadTasks();
   };
 
-  const handleToggleChecklist = (taskId: string, checklistId: string) => {
-    TaskService.toggleChecklistItem(taskId, checklistId);
-    loadTasks();
+  const handleToggleChecklist = async (task: TaskItem, checklistId: string) => {
+    await TaskService.toggleChecklistItem(task, checklistId);
+    await loadTasks();
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!taskToDelete) return;
-    TaskService.deleteTask(taskToDelete.id);
+    await TaskService.deleteTask(taskToDelete.id);
     showToast('Tugas berhasil dihapus.', 'info');
     setTaskToDelete(null);
-    loadTasks();
+    await loadTasks();
   };
 
   const handleSendTelegramTest = async (t: TaskItem, e: React.MouseEvent) => {
@@ -217,11 +226,8 @@ export const TasksPage: React.FC = () => {
       return;
     }
     const res = await TelegramService.sendTestTelegramReminder(user.telegramChatId, t);
-    showToast(res.message, 'success');
+    showToast(res.message, res.success ? 'success' : 'error');
   };
-
-  // Associated folders for subject linking
-  const availableFolders = user ? ArchiveService.getAllUserFolders(user.id) : [];
 
   return (
     <div className="space-y-6">
@@ -229,15 +235,15 @@ export const TasksPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-display font-black text-2xl text-brand-black">
-            Manajemen Tugas & Deadline
+            Tugas & Deadline Kuliah Kita
           </h2>
           <p className="text-xs text-brand-secondary font-medium">
-            Pantau progres tugas kuliah dan atur pengingat notifikasi Telegram otomatis.
+            Pantau tugas kuliah kita berdua, checklist progres bareng, dan atur notifikasi bot Telegram.
           </p>
         </div>
 
         <RetroButton
-          variant="yellow"
+          variant="blue"
           size="md"
           leftIcon={<PlusCircle className="w-4 h-4 stroke-[3]" />}
           onClick={handleOpenCreateModal}
@@ -257,7 +263,7 @@ export const TasksPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari judul tugas..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs font-medium rounded-lg border-2 border-brand-black bg-brand-cream/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-yellow"
+              className="w-full pl-9 pr-3 py-1.5 text-xs font-medium rounded-lg border-2 border-brand-black bg-brand-ice/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
             />
           </div>
 
@@ -282,9 +288,9 @@ export const TasksPage: React.FC = () => {
             className="border-2 border-brand-black rounded-lg px-3 py-1.5 bg-white text-xs font-bold cursor-pointer focus:outline-none"
           >
             <option value="all">Semua Prioritas</option>
-            <option value="high">🔥 Tinggi (High)</option>
-            <option value="medium">⚡ Sedang (Medium)</option>
-            <option value="low">🌱 Rendah (Low)</option>
+            <option value="high">Tinggi (High)</option>
+            <option value="medium">Sedang (Medium)</option>
+            <option value="low">Rendah (Low)</option>
           </select>
 
           {/* Filter Status */}
@@ -304,7 +310,7 @@ export const TasksPage: React.FC = () => {
       {/* 3. Empty State */}
       {sortedTasks.length === 0 && (
         <div className="bg-white border-3 border-brand-black rounded-2xl p-8 sm:p-12 text-center space-y-3 shadow-retro">
-          <CheckSquare className="w-12 h-12 text-brand-green mx-auto stroke-[2.5]" />
+          <CheckSquare className="w-12 h-12 text-brand-blue mx-auto stroke-[2.5]" />
           <h3 className="font-display font-black text-2xl text-brand-black">
             Tidak Ada Tugas yang Cocok.
           </h3>
@@ -312,7 +318,7 @@ export const TasksPage: React.FC = () => {
             Semua tugas selesai atau filter pencarian tidak menemukan hasil.
           </p>
           <div className="pt-2">
-            <RetroButton variant="yellow" size="sm" onClick={handleOpenCreateModal}>
+            <RetroButton variant="blue" size="sm" onClick={handleOpenCreateModal}>
               Tambah Tugas
             </RetroButton>
           </div>
@@ -327,9 +333,9 @@ export const TasksPage: React.FC = () => {
           const isCompleted = task.status === 'completed';
 
           const priorityBadge = {
-            high: 'bg-brand-pink text-brand-black border-brand-black',
-            medium: 'bg-brand-yellow text-brand-black border-brand-black',
-            low: 'bg-brand-green text-white border-brand-black',
+            high: 'bg-brand-navy text-white border-brand-black',
+            medium: 'bg-brand-sky text-brand-black border-brand-black',
+            low: 'bg-brand-ice text-brand-black border-brand-black',
           }[task.priority];
 
           const completedCount = task.checklist.filter((c) => c.completed).length;
@@ -347,11 +353,11 @@ export const TasksPage: React.FC = () => {
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <button
                     onClick={() => handleToggleTaskStatus(task)}
-                    className="mt-0.5 text-brand-black hover:text-brand-green transition-colors cursor-pointer flex-shrink-0"
+                    className="mt-0.5 text-brand-black hover:text-brand-blue transition-colors cursor-pointer flex-shrink-0"
                     title={isCompleted ? 'Batalkan Selesai' : 'Tandai Selesai'}
                   >
                     {isCompleted ? (
-                      <CheckCircle2 className="w-6 h-6 text-brand-green fill-brand-green/20 stroke-[2.5]" />
+                      <CheckCircle2 className="w-6 h-6 text-brand-blue fill-brand-blue/20 stroke-[2.5]" />
                     ) : (
                       <Circle className="w-6 h-6 stroke-[2.5] text-brand-secondary" />
                     )}
@@ -368,14 +374,14 @@ export const TasksPage: React.FC = () => {
                         {task.subject}
                       </span>
                       {task.folderId && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-brand-black bg-brand-cream">
-                          📁 Linked
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-brand-black bg-brand-ice text-brand-navy">
+                          Linked
                         </span>
                       )}
                     </div>
 
                     <h3
-                      className={`font-heading font-black text-base sm:text-lg text-brand-black ${
+                      className={`font-heading font-black text-base sm:text-lg text-brand-black break-words ${
                         isCompleted ? 'line-through text-brand-secondary' : ''
                       }`}
                     >
@@ -383,7 +389,7 @@ export const TasksPage: React.FC = () => {
                     </h3>
 
                     {task.description && (
-                      <p className="text-xs text-brand-secondary mt-1 font-medium leading-relaxed">
+                      <p className="text-xs text-brand-secondary mt-1 font-medium leading-relaxed break-words">
                         {task.description}
                       </p>
                     )}
@@ -398,9 +404,9 @@ export const TasksPage: React.FC = () => {
                         isCompleted
                           ? 'bg-neutral-100 text-brand-secondary'
                           : isOverdue
-                          ? 'bg-brand-pink text-brand-black animate-pulse'
+                          ? 'bg-brand-navy text-white animate-pulse'
                           : isToday
-                          ? 'bg-brand-yellow text-brand-black'
+                          ? 'bg-brand-sky text-brand-navy font-black'
                           : 'bg-white text-brand-black'
                       }`}
                     >
@@ -425,7 +431,7 @@ export const TasksPage: React.FC = () => {
                     {/* Edit Button */}
                     <button
                       onClick={() => handleOpenEditModal(task)}
-                      className="p-1.5 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-cream text-brand-black transition-colors"
+                      className="p-1.5 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-ice text-brand-black transition-colors"
                       title="Edit Tugas"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -434,7 +440,7 @@ export const TasksPage: React.FC = () => {
                     {/* Delete Button */}
                     <button
                       onClick={() => setTaskToDelete(task)}
-                      className="p-1.5 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-pink text-brand-black transition-colors"
+                      className="p-1.5 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-ice text-brand-black transition-colors"
                       title="Hapus Tugas"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -459,13 +465,13 @@ export const TasksPage: React.FC = () => {
                     {task.checklist.map((item) => (
                       <label
                         key={item.id}
-                        className="flex items-center gap-2 p-1.5 rounded bg-brand-cream/40 border border-brand-black/20 text-xs cursor-pointer select-none hover:bg-brand-cream"
+                        className="flex items-center gap-2 p-1.5 rounded bg-brand-ice/40 border border-brand-black/20 text-xs cursor-pointer select-none hover:bg-brand-ice"
                       >
                         <input
                           type="checkbox"
                           checked={item.completed}
-                          onChange={() => handleToggleChecklist(task.id, item.id)}
-                          className="w-3.5 h-3.5 rounded border border-brand-black text-brand-green focus:ring-0 cursor-pointer"
+                          onChange={() => handleToggleChecklist(task, item.id)}
+                          className="w-3.5 h-3.5 rounded border border-brand-black text-brand-blue focus:ring-0 cursor-pointer"
                         />
                         <span className={`truncate ${item.completed ? 'line-through text-brand-secondary' : 'font-medium'}`}>
                           {item.title}
@@ -486,7 +492,7 @@ export const TasksPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         title={editingTaskId ? 'EDIT TUGAS KULIAH' : 'TAMBAH TUGAS KULIAH BARU'}
         tag="DEADLINE"
-        headerBg="yellow"
+        headerBg="blue"
         maxWidth="2xl"
       >
         <form onSubmit={handleSubmitTask} className="space-y-4">
@@ -500,7 +506,7 @@ export const TasksPage: React.FC = () => {
               onChange={(e) => setFormTitle(e.target.value)}
               placeholder="Contoh: Membuat Flowchart Algoritma Pemrograman"
               required
-              className="w-full px-3.5 py-2.5 rounded-lg border-2 border-brand-black text-sm font-medium focus:ring-2 focus:ring-brand-yellow focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-lg border-2 border-brand-black text-sm font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
             />
           </div>
 
@@ -531,7 +537,7 @@ export const TasksPage: React.FC = () => {
                 <option value="">-- Tanpa Tautan Folder --</option>
                 {availableFolders.map((f) => (
                   <option key={f.id} value={f.id}>
-                    📂 {f.name}
+                    {f.name}
                   </option>
                 ))}
               </select>
@@ -574,9 +580,9 @@ export const TasksPage: React.FC = () => {
                 onChange={(e) => setFormPriority(e.target.value as TaskPriority)}
                 className="w-full px-3 py-2 rounded-lg border-2 border-brand-black text-xs font-bold bg-white"
               >
-                <option value="high">🔥 Tinggi (High)</option>
-                <option value="medium">⚡ Sedang (Medium)</option>
-                <option value="low">🌱 Rendah (Low)</option>
+                <option value="high">Tinggi (High)</option>
+                <option value="medium">Sedang (Medium)</option>
+                <option value="low">Rendah (Low)</option>
               </select>
             </div>
           </div>
@@ -624,7 +630,7 @@ export const TasksPage: React.FC = () => {
             </div>
 
             {checklistItems.length > 0 && (
-              <div className="space-y-1.5 max-h-32 overflow-y-auto p-2 rounded-lg border border-brand-black bg-brand-cream/30">
+              <div className="space-y-1.5 max-h-32 overflow-y-auto p-2 rounded-lg border border-brand-black bg-brand-ice/30">
                 {checklistItems.map((c) => (
                   <div
                     key={c.id}
@@ -634,7 +640,7 @@ export const TasksPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleRemoveChecklistItem(c.id)}
-                      className="text-brand-pink hover:text-black p-0.5"
+                      className="text-brand-navy hover:text-black p-0.5"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -653,7 +659,7 @@ export const TasksPage: React.FC = () => {
             >
               Batal
             </RetroButton>
-            <RetroButton variant="yellow" size="sm" type="submit">
+            <RetroButton variant="blue" size="sm" type="submit">
               {editingTaskId ? 'Simpan Perubahan' : 'Buat Tugas'}
             </RetroButton>
           </div>
@@ -666,7 +672,7 @@ export const TasksPage: React.FC = () => {
         onClose={() => setTaskToDelete(null)}
         title="KONFIRMASI HAPUS TUGAS"
         tag="DELETE"
-        headerBg="pink"
+        headerBg="blue"
         maxWidth="md"
       >
         <div className="space-y-4">
@@ -680,7 +686,7 @@ export const TasksPage: React.FC = () => {
             <RetroButton variant="outline" size="sm" onClick={() => setTaskToDelete(null)}>
               Batal
             </RetroButton>
-            <RetroButton variant="pink" size="sm" onClick={handleDeleteConfirm}>
+            <RetroButton variant="blue" size="sm" onClick={handleDeleteConfirm}>
               Hapus Tugas
             </RetroButton>
           </div>

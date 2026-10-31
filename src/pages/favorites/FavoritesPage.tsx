@@ -17,9 +17,9 @@ export const FavoritesPage: React.FC = () => {
   const [favFolders, setFavFolders] = useState<FolderItem[]>([]);
   const [favFiles, setFavFiles] = useState<FileItem[]>([]);
 
-  const loadFavorites = () => {
+  const loadFavorites = async () => {
     if (!user) return;
-    const { folders, files } = ArchiveService.getFavorites(user.id);
+    const { folders, files } = await ArchiveService.getFavorites(user.id);
     setFavFolders(folders);
     setFavFiles(files);
   };
@@ -28,16 +28,16 @@ export const FavoritesPage: React.FC = () => {
     loadFavorites();
   }, [user]);
 
-  const handleRemoveFavoriteFolder = (id: string) => {
-    ArchiveService.toggleFavoriteFolder(id);
+  const handleRemoveFavoriteFolder = async (id: string) => {
+    await ArchiveService.toggleFavoriteFolder(id);
     showToast('Dihapus dari favorit.', 'info');
-    loadFavorites();
+    await loadFavorites();
   };
 
-  const handleRemoveFavoriteFile = (id: string) => {
-    ArchiveService.toggleFavoriteFile(id);
+  const handleRemoveFavoriteFile = async (id: string) => {
+    await ArchiveService.toggleFavoriteFile(id);
     showToast('Dihapus dari favorit.', 'info');
-    loadFavorites();
+    await loadFavorites();
   };
 
   const handleDownload = async (file: FileItem) => {
@@ -53,11 +53,11 @@ export const FavoritesPage: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h2 className="font-display font-black text-2xl text-brand-black flex items-center gap-2">
-          <Star className="w-6 h-6 fill-brand-yellow text-brand-black" />
+          <Star className="w-6 h-6 fill-brand-sky text-brand-navy" />
           <span>Folder & Dokumen Favorit</span>
         </h2>
         <p className="text-xs text-brand-secondary font-medium">
-          Akses kilat ke materi dan folder yang paling sering kamu buka.
+          Akses kilat ke materi kuliah dan catatan tugas yang paling sering kita buka.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export const FavoritesPage: React.FC = () => {
             Klik ikon bintang pada folder atau dokumen di Arsip untuk menyimpannya di sini.
           </p>
           <div className="pt-2">
-            <RetroButton variant="yellow" size="sm" onClick={() => navigate('/archive')}>
+            <RetroButton variant="blue" size="sm" onClick={() => navigate('/archive')}>
               Buka Arsip Dokumen
             </RetroButton>
           </div>
@@ -83,14 +83,14 @@ export const FavoritesPage: React.FC = () => {
             <WindowCard
               title="FOLDER FAVORIT"
               tag={`${favFolders.length} FOLDER`}
-              headerBg="yellow"
+              headerBg="blue"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {favFolders.map((f) => (
                   <div
                     key={f.id}
                     onClick={() => navigate('/archive')}
-                    className="p-3.5 rounded-xl border-2 border-brand-black bg-brand-cream/40 hover:bg-brand-cream transition-all cursor-pointer flex items-center justify-between gap-2 shadow-retro-sm"
+                    className="p-3.5 rounded-xl border-2 border-brand-black bg-brand-ice/40 hover:bg-brand-ice transition-all cursor-pointer flex items-center justify-between gap-2 shadow-retro-sm"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Folder className="w-5 h-5 text-brand-black flex-shrink-0" />
@@ -112,7 +112,7 @@ export const FavoritesPage: React.FC = () => {
                       className="p-1 rounded hover:bg-white text-brand-black"
                       title="Hapus dari Favorit"
                     >
-                      <Star className="w-4 h-4 fill-brand-yellow text-brand-black" />
+                      <Star className="w-4 h-4 fill-brand-sky text-brand-navy" />
                     </button>
                   </div>
                 ))}
@@ -125,16 +125,16 @@ export const FavoritesPage: React.FC = () => {
             <WindowCard
               title="DOKUMEN FAVORIT"
               tag={`${favFiles.length} FILE`}
-              headerBg="green"
+              headerBg="blue"
             >
               <div className="space-y-2">
                 {favFiles.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between p-3 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-cream/30 transition-colors shadow-xs"
+                    className="flex items-center justify-between p-3 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-ice/30 transition-colors shadow-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded border border-brand-black bg-brand-yellow flex items-center justify-center font-mono text-[10px] font-bold uppercase">
+                      <div className="w-8 h-8 rounded border border-brand-black bg-brand-sky flex items-center justify-center font-mono text-[10px] font-bold uppercase">
                         {file.extension}
                       </div>
                       <div className="min-w-0">
@@ -150,17 +150,17 @@ export const FavoritesPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleDownload(file)}
-                        className="p-1.5 rounded-lg border border-brand-black hover:bg-brand-green/20"
+                        className="p-1.5 rounded-lg border border-brand-black hover:bg-brand-ice"
                         title="Unduh"
                       >
                         <Download className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleRemoveFavoriteFile(file.id)}
-                        className="p-1.5 rounded-lg border border-brand-black hover:bg-brand-pink/30"
+                        className="p-1.5 rounded-lg border border-brand-black hover:bg-brand-ice"
                         title="Hapus dari Favorit"
                       >
-                        <Star className="w-4 h-4 fill-brand-yellow text-brand-black" />
+                        <Star className="w-4 h-4 fill-brand-sky text-brand-navy" />
                       </button>
                     </div>
                   </div>

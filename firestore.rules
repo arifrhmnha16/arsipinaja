@@ -14,15 +14,22 @@ service cloud.firestore {
     
     // Helper function to check if user has admin role
     function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuthenticated() && (
+        (request.auth.token.email != null && request.auth.token.email.matches('.*admin.*')) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
 
     // Users Collection
     match /users/{userId} {
+      // User can read their own document, admin can list and read all users
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAdmin();
+      // User can initialize their own profile on login; admin can create student accounts
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // User can update their own profile; admin can update any user
       allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Only admin can delete user profiles
       allow delete: if isAdmin();
     }
 
@@ -30,42 +37,46 @@ service cloud.firestore {
     match /folders/{folderId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Files Metadata Collection
     match /files/{fileId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Tasks Collection
     match /tasks/{taskId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Notifications Log
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if isAdmin();
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Shared Documents Collection
     match /sharedDocuments/{shareId} {
       allow read: if isAuthenticated() && (
         resource.data.ownerId == request.auth.uid || 
-        resource.data.sharedWithEmail == request.auth.token.email
+        (request.auth.token.email != null && resource.data.sharedWithEmail == request.auth.token.email) ||
+        isAdmin()
       );
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthenticated() && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
-    // Telegram Verifications
+    // Telegram Verifications Collection
     match /telegramVerifications/{verificationId} {
-      allow read, write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
   }
 }

@@ -11,7 +11,7 @@ export interface RetroButtonProps extends React.ButtonHTMLAttributes<HTMLButtonE
 
 export const RetroButton: React.FC<RetroButtonProps> = ({
   children,
-  variant = 'yellow',
+  variant = 'blue',
   size = 'md',
   isLoading = false,
   leftIcon,
@@ -21,14 +21,14 @@ export const RetroButton: React.FC<RetroButtonProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    yellow: 'bg-brand-yellow text-brand-black hover:bg-[#ebd300]',
-    green: 'bg-brand-green text-white hover:bg-[#009259]',
-    pink: 'bg-brand-pink text-brand-black hover:bg-[#ea6d95]',
-    blue: 'bg-brand-blue text-white hover:bg-[#2c77b0]',
-    cream: 'bg-brand-cream text-brand-black hover:bg-[#fae2c0]',
-    white: 'bg-white text-brand-black hover:bg-neutral-100',
-    black: 'bg-brand-black text-brand-yellow hover:bg-neutral-800',
-    outline: 'bg-transparent text-brand-black hover:bg-black/5',
+    yellow: 'bg-brand-blue text-white hover:bg-brand-navy',
+    green: 'bg-brand-cyan text-white hover:bg-[#0284c7]',
+    pink: 'bg-brand-navy text-white hover:bg-brand-blue',
+    blue: 'bg-brand-blue text-white hover:bg-brand-navy',
+    cream: 'bg-brand-ice text-brand-navy hover:bg-[#bae6fd]',
+    white: 'bg-white text-brand-black hover:bg-brand-ice',
+    black: 'bg-brand-black text-white hover:bg-neutral-800',
+    outline: 'bg-transparent text-brand-black hover:bg-brand-ice',
   }[variant];
 
   const sizeStyles = {

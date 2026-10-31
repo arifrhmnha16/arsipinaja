@@ -30,8 +30,11 @@ export const CalendarPage: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const userTasks = TaskService.getTasks(user.id);
-    setTasks(userTasks);
+    const loadTasks = async () => {
+      const userTasks = await TaskService.getTasks(user.id);
+      setTasks(userTasks);
+    };
+    loadTasks();
   }, [user]);
 
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -73,10 +76,10 @@ export const CalendarPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-display font-black text-2xl text-brand-black">
-            Kalender Akademik & Jadwal Kuliah
+            Kalender & Jadwal Kuliah Kita
           </h2>
           <p className="text-xs text-brand-secondary font-medium">
-            Visualisasi seluruh tenggat waktu dan jadwal pengerjaan tugas kuliahmu.
+            Visualisasi seluruh tenggat waktu dan jadwal tugas kuliah kita berdua.
           </p>
         </div>
 
@@ -95,7 +98,7 @@ export const CalendarPage: React.FC = () => {
             ))}
           </select>
 
-          <RetroButton variant="yellow" size="sm" onClick={goToToday}>
+          <RetroButton variant="blue" size="sm" onClick={goToToday}>
             Hari Ini
           </RetroButton>
         </div>
@@ -107,19 +110,19 @@ export const CalendarPage: React.FC = () => {
           <WindowCard
             title={format(currentDate, 'MMMM yyyy', { locale: idLocale }).toUpperCase()}
             tag="DEADLINE VIEW"
-            headerBg="yellow"
+            headerBg="blue"
             headerActions={
               <div className="flex items-center gap-1">
                 <button
                   onClick={prevMonth}
-                  className="p-1 rounded bg-white hover:bg-brand-cream border border-brand-black cursor-pointer shadow-xs"
+                  className="p-1 rounded bg-white hover:bg-brand-ice border border-brand-black cursor-pointer shadow-xs text-brand-black"
                   title="Bulan Sebelumnya"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextMonth}
-                  className="p-1 rounded bg-white hover:bg-brand-cream border border-brand-black cursor-pointer shadow-xs"
+                  className="p-1 rounded bg-white hover:bg-brand-ice border border-brand-black cursor-pointer shadow-xs text-brand-black"
                   title="Bulan Berikutnya"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -151,7 +154,7 @@ export const CalendarPage: React.FC = () => {
                     onClick={() => setSelectedDate(day)}
                     className={`min-h-[70px] sm:min-h-[85px] p-1 sm:p-1.5 rounded-lg border-2 transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? 'border-brand-black bg-brand-yellow/30 shadow-retro-sm'
+                        ? 'border-brand-black bg-brand-ice shadow-retro-sm'
                         : isCurrentMonth
                         ? 'border-brand-black/20 bg-white hover:border-brand-black'
                         : 'border-transparent bg-neutral-100/50 text-neutral-400'
@@ -161,7 +164,7 @@ export const CalendarPage: React.FC = () => {
                       <span
                         className={`text-xs font-mono font-bold w-6 h-6 rounded-full flex items-center justify-center ${
                           isCurrentDay
-                            ? 'bg-brand-pink text-brand-black border border-brand-black font-extrabold'
+                            ? 'bg-brand-blue text-white border border-brand-black font-extrabold'
                             : ''
                         }`}
                       >
@@ -169,7 +172,7 @@ export const CalendarPage: React.FC = () => {
                       </span>
 
                       {dayTasks.length > 0 && (
-                        <span className="text-[10px] font-mono font-bold px-1 rounded bg-brand-black text-brand-yellow">
+                        <span className="text-[10px] font-mono font-bold px-1 rounded bg-brand-navy text-white">
                           {dayTasks.length}
                         </span>
                       )}
@@ -179,9 +182,9 @@ export const CalendarPage: React.FC = () => {
                     <div className="space-y-1 mt-1 overflow-hidden">
                       {dayTasks.slice(0, 2).map((t) => {
                         const bg = {
-                          high: 'bg-brand-pink text-brand-black',
-                          medium: 'bg-brand-yellow text-brand-black',
-                          low: 'bg-brand-green text-white',
+                          high: 'bg-brand-navy text-white',
+                          medium: 'bg-brand-sky text-brand-black',
+                          low: 'bg-brand-ice text-brand-black',
                         }[t.priority];
 
                         return (
@@ -211,9 +214,9 @@ export const CalendarPage: React.FC = () => {
         <div className="lg:col-span-4 space-y-6">
           {/* Selected Date Tasks */}
           <WindowCard
-            title={format(selectedDate, 'EEEE, d MMMM yyyy', { locale: idLocale }).toUpperCase()}
+            title={format(selectedDate, 'EEE, d MMM yyyy', { locale: idLocale }).toUpperCase()}
             tag={`${tasksOnSelectedDate.length} TUGAS`}
-            headerBg="cream"
+            headerBg="blue"
           >
             {tasksOnSelectedDate.length === 0 ? (
               <div className="text-center py-8 text-xs text-brand-secondary">
@@ -225,7 +228,7 @@ export const CalendarPage: React.FC = () => {
                 {tasksOnSelectedDate.map((t) => (
                   <div
                     key={t.id}
-                    className="p-3 rounded-lg border-2 border-brand-black bg-brand-cream/30 space-y-1.5 shadow-xs"
+                    className="p-3 rounded-lg border-2 border-brand-black bg-brand-ice/30 space-y-1.5 shadow-xs"
                   >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-brand-secondary truncate">
@@ -255,7 +258,7 @@ export const CalendarPage: React.FC = () => {
           <WindowCard
             title="DEADLINE MENDATANG"
             tag="UPCOMING"
-            headerBg="green"
+            headerBg="blue"
           >
             <div className="space-y-2.5">
               {upcomingDeadlines.map((t) => (
@@ -269,7 +272,7 @@ export const CalendarPage: React.FC = () => {
                       {t.subject}
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-yellow border border-brand-black">
+                  <div className="text-right flex-shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-sky border border-brand-black">
                     {t.deadlineDate}
                   </div>
                 </div>
